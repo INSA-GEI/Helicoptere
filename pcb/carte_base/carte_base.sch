@@ -1397,7 +1397,7 @@ Wire Wire Line
 Wire Wire Line
 	4000 3050 4000 3000
 $Comp
-L Device:D_Schottky_AAK D1
+L carte_base-rescue:D_Schottky_AAK-Device D1
 U 1 1 5D9FB932
 P 1400 1650
 F 0 "D1" H 1425 1517 50  0000 C CNN
