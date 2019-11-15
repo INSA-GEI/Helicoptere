@@ -1,9 +1,9 @@
 /**
  ******************************************************************************
- * @file           : led.h
- * @brief          : Led program header
+ * @file           : base_com.h
+ * @brief          : <Description to come here>
  * @author         : dimercur
- * @date           : Nov 13, 2019
+ * @date           : 15 nov. 2019
  ******************************************************************************
  * @attention
  *
@@ -24,21 +24,20 @@
  ******************************************************************************
  */
 
-#ifndef LED_H_
-#define LED_H_
+#ifndef BASE_COM_H_
+#define BASE_COM_H_
 
 #include "stm32l4xx_hal.h"
 
-#define LED_MODE_IDLE 	0
-#define LED_MODE_RUN 	1
-#define LED_MODE_ERROR 	2
-#define LED_MODE_OFF 	3
-#define LED_MODE_ON		4
+typedef void (*BASECOM_ReceptionCallbackTypeDef)(char* data, uint16_t size);
 
-void LED_Init(void);
-void LED_MspInit(void);
-void LED_MspDeInit(void);
+void BASECOM_Init(void);
+void BASECOM_MspInit(void);
+void BASECOM_MspDeInit(void);
 
-void LED_SetMode(int mode);
+void BASECOM_AddReceptionCallback (BASECOM_ReceptionCallbackTypeDef callback);
+void BASECOM_SendData (char* data, uint16_t size);
+void BASECOM_StartReception(void);
+void BASECOM_StopReception(void);
 
-#endif /* LED_H_ */
+#endif /* BASE_COM_H_ */

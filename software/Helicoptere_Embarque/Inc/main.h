@@ -32,6 +32,11 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "led.h"
+#include "motors.h"
+#include "xbee.h"
+#include "base_com.h"
+#include "acc_gyro.h"
 
 /* USER CODE END Includes */
 

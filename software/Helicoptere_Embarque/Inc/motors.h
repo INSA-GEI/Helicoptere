@@ -1,9 +1,9 @@
 /**
  ******************************************************************************
- * @file           : led.h
- * @brief          : Led program header
+ * @file           : motors.h
+ * @brief          : Motors program header
  * @author         : dimercur
- * @date           : Nov 13, 2019
+ * @date           : Nov 14, 2019
  ******************************************************************************
  * @attention
  *
@@ -24,21 +24,16 @@
  ******************************************************************************
  */
 
-#ifndef LED_H_
-#define LED_H_
+#ifndef MOTORS_H_
+#define MOTORS_H_
 
 #include "stm32l4xx_hal.h"
 
-#define LED_MODE_IDLE 	0
-#define LED_MODE_RUN 	1
-#define LED_MODE_ERROR 	2
-#define LED_MODE_OFF 	3
-#define LED_MODE_ON		4
+void MOTORS_Init();
+void MOTORS_MspInit();
+void MOTORS_MspDeInit();
 
-void LED_Init(void);
-void LED_MspInit(void);
-void LED_MspDeInit(void);
+void MOTORS_SetHead(uint32_t speed);
+void MOTORS_SetTail(uint32_t speed);
 
-void LED_SetMode(int mode);
-
-#endif /* LED_H_ */
+#endif /* MOTORS_H_ */

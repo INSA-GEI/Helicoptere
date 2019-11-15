@@ -29,11 +29,24 @@
 TIM_HandleTypeDef htim2;
 extern void Error_Handler(void);
 static void LED_MspPostInit();
-static void LED_MspDeInit();
 
 #define LED_PERIOD 1220
 
+/* HAL_TIM_Base_MspInit and HAL_TIM_Base_MspDeInit are defined in stm32l4xx_hal_msp.c and used by HAL_TIM_Base_Init
+ * Both call LED_MspInit (or LED_MspDeInit) if timer is tim2
+ */
+
 /**** Support Functions ****/
+void LED_MspInit(void)
+{
+	__HAL_RCC_TIM2_CLK_ENABLE();
+}
+
+void LED_MspDeInit(void)
+{
+	__HAL_RCC_TIM2_CLK_DISABLE();
+}
+
 static void LED_MspPostInit()
 {
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -52,78 +65,66 @@ static void LED_MspPostInit()
 }
 
 /**
-* @brief TIM_Base MSP De-Initialization
-* This function freeze the hardware resources used in this example
-* @param htim_base: TIM_Base handle pointer
-* @retval None
-*/
-static void LED_MspDeInit()
-{
-    /* Peripheral clock disable */
-    __HAL_RCC_TIM2_CLK_DISABLE();
-}
-
-/**
-  * @brief LED Initialization Function
-  * @param None
-  * @retval None
-  */
+ * @brief LED Initialization Function
+ * @param None
+ * @retval None
+ */
 void LED_Init(void)
 {
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
+	TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+	TIM_MasterConfigTypeDef sMasterConfig = {0};
+	TIM_OC_InitTypeDef sConfigOC = {0};
 
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 65535;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = LED_PERIOD;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	htim2.Instance = TIM2;
+	htim2.Init.Prescaler = 65535;
+	htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+	htim2.Init.Period = LED_PERIOD;
+	htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+	if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+	if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+	if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 610;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	sConfigOC.OCMode = TIM_OCMODE_PWM1;
+	sConfigOC.Pulse = 610;
+	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+	if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  LED_SetMode(LED_MODE_IDLE);
-  LED_MspPostInit(&htim2);
+	LED_SetMode(LED_MODE_IDLE);
+	LED_MspPostInit(&htim2);
 
-  HAL_TIM_OC_Start(&htim2, TIM_CHANNEL_2);
-  HAL_TIM_Base_Start(&htim2);
+	HAL_TIM_OC_Start(&htim2, TIM_CHANNEL_2);
+	HAL_TIM_Base_Start(&htim2);
 }
 
 /**
-  * @brief LED Set
-  * @param None
-  * @retval None
-  */
+ * @brief LED Set
+ * @param None
+ * @retval None
+ */
 void LED_SetMode(int mode)
 {
 	switch (mode)
@@ -139,6 +140,14 @@ void LED_SetMode(int mode)
 	case LED_MODE_ERROR:
 		__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, LED_PERIOD/20);
 		__HAL_TIM_SET_AUTORELOAD(&htim2, LED_PERIOD/10);
+		break;
+	case LED_MODE_OFF:
+		__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 0);
+		__HAL_TIM_SET_AUTORELOAD(&htim2, LED_PERIOD);
+		break;
+	case LED_MODE_ON:
+		__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, LED_PERIOD);
+		__HAL_TIM_SET_AUTORELOAD(&htim2, LED_PERIOD);
 		break;
 	default:
 		__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, LED_PERIOD/10);

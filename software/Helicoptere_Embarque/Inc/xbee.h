@@ -1,9 +1,9 @@
 /**
  ******************************************************************************
- * @file           : led.h
- * @brief          : Led program header
+ * @file           : xbee.h
+ * @brief          : Communication through xbee or Bluetooth
  * @author         : dimercur
- * @date           : Nov 13, 2019
+ * @date           : 15 nov. 2019
  ******************************************************************************
  * @attention
  *
@@ -24,21 +24,20 @@
  ******************************************************************************
  */
 
-#ifndef LED_H_
-#define LED_H_
+#ifndef XBEE_H_
+#define XBEE_H_
 
 #include "stm32l4xx_hal.h"
 
-#define LED_MODE_IDLE 	0
-#define LED_MODE_RUN 	1
-#define LED_MODE_ERROR 	2
-#define LED_MODE_OFF 	3
-#define LED_MODE_ON		4
+typedef void (*XBEE_ReceptionCallbackTypeDef)(char* data, uint16_t size);
 
-void LED_Init(void);
-void LED_MspInit(void);
-void LED_MspDeInit(void);
+void XBEE_Init(void);
+void XBEE_MspInit(void);
+void XBEE_MspDeInit(void);
 
-void LED_SetMode(int mode);
+void XBEE_AddReceptionCallback (XBEE_ReceptionCallbackTypeDef callback);
+void XBEE_SendData (char* data, uint16_t size);
+void XBEE_StartReception(void);
+void XBEE_StopReception(void);
 
-#endif /* LED_H_ */
+#endif /* XBEE_H_ */
