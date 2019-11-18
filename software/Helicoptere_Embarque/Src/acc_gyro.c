@@ -100,6 +100,17 @@ static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
 lsm6ds3_ctx_t sensorCtx;
 static char accSensorEnabled=0;
 
+static int32_t GyroCorrectionCoeffs[3] = {0};
+
+#if LSM6DS3_ADDRESS_HIGH
+#define LSM6DS3_I2C_ADD LSM6DS3_I2C_ADD_H
+#else
+#define LSM6DS3_I2C_ADD LSM6DS3_I2C_ADD_L
+#endif /* LSM6DS3_ADDRESS_HIGH */
+
+#define SENSOR_INT_Pin GPIO_PIN_1
+#define SENSOR_INT_GPIO_Port GPIOA
+#define SENSOR_INT_EXTI_IRQn EXTI1_IRQn
 /**
  * @}
  */
@@ -128,9 +139,11 @@ static char accSensorEnabled=0;
 uint8_t ACC_GYRO_Init(void)
 { 
 	uint8_t whoamI,rst;
-	//lsm6ds3_int1_route_t int_1_reg;
+	lsm6ds3_int1_route_t int_1_reg;
+	axis3bit16_t data;
 
 	hi2c1.Instance = I2C1;
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
 	/* Call the DeInit function to reset the driver */
 	if (HAL_I2C_DeInit(&hi2c1) != HAL_OK)
@@ -138,8 +151,8 @@ uint8_t ACC_GYRO_Init(void)
 		return ACC_ERROR;
 	}
 
-	//hi2c1.Init.Timing = 0x10909CEC;
-	hi2c1.Init.Timing = 0x40912732;
+	hi2c1.Init.Timing = 0x10909CEC;
+	//hi2c1.Init.Timing = 0x40912732;
 	hi2c1.Init.OwnAddress1 = 0;
 	hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
 	hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -193,24 +206,50 @@ uint8_t ACC_GYRO_Init(void)
 	/*
 	 * Set full scale
 	 */
-	lsm6ds3_xl_full_scale_set(&sensorCtx, LSM6DS3_4g);
-	lsm6ds3_gy_full_scale_set(&sensorCtx, LSM6DS3_1000dps);
+	lsm6ds3_xl_full_scale_set(&sensorCtx, LSM6DS3_ACC_FULL_SCALE);
+	lsm6ds3_gy_full_scale_set(&sensorCtx, LSM6DS3_GYRO_FULL_SCALE);
 
 	/*
 	 * Set Output Data Rate
 	 */
-	lsm6ds3_xl_data_rate_set(&sensorCtx, LSM6DS3_XL_ODR_833Hz);
-	lsm6ds3_gy_data_rate_set(&sensorCtx, LSM6DS3_GY_ODR_833Hz);
+	lsm6ds3_xl_data_rate_set(&sensorCtx, LSM6DS3_ACC_ODR);
+	lsm6ds3_gy_data_rate_set(&sensorCtx, LSM6DS3_GYRO_ODR);
+
+	/*
+	 * Set Accelerometer and gyroscope in High performance mode
+	 */
+	lsm6ds3_xl_power_mode_set(&sensorCtx, LSM6DS3_XL_HIGH_PERFORMANCE);
+	lsm6ds3_gy_power_mode_set(&sensorCtx, LSM6DS3_GY_HIGH_PERFORMANCE);
+
+	accSensorEnabled = 1;
+
+	/*
+	 * Compute gyro bias
+	 */
+	GYRO_UpdateGyroBias();
 
 	/*
 	 * Enable interrupt generation on DRDY INT1 pin
 	 */
-	//	lsm6ds3_pin_int1_route_get(&sensorCtx, &int_1_reg);
-	//	int_1_reg.int1_drdy_g = PROPERTY_ENABLE;
-	//	int_1_reg.int1_drdy_xl = PROPERTY_ENABLE;
-	//	lsm6ds3_pin_int1_route_set(&sensorCtx, &int_1_reg);
+	lsm6ds3_pin_int1_route_get(&sensorCtx, &int_1_reg);
+	int_1_reg.int1_drdy_g = PROPERTY_ENABLE;
+	int_1_reg.int1_drdy_xl = PROPERTY_ENABLE;
+	lsm6ds3_pin_int1_route_set(&sensorCtx, &int_1_reg);
 
-	accSensorEnabled = 1;
+	/* Configure GPIO pin : SENSOR_INT_Pin */
+	GPIO_InitStruct.Pin = SENSOR_INT_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(SENSOR_INT_GPIO_Port, &GPIO_InitStruct);
+
+	/* EXTI interrupt init*/
+	HAL_NVIC_SetPriority(EXTI1_IRQn, 0x09, 0);
+	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+	/* Do some dummy reads to flush It */
+	lsm6ds3_acceleration_raw_get(&sensorCtx, data.u8bit);
+	lsm6ds3_angular_rate_raw_get(&sensorCtx, data.u8bit);
+
 	return ACC_OK;
 }
 
@@ -224,6 +263,39 @@ uint8_t ACC_GYRO_DeInit(void)
 	accSensorEnabled =0;
 
 	return ACC_OK;
+}
+
+/**
+ * @brief  Request ID of the chip.
+ * @retval If ID is 105, return ACC_OK, ACC_ERROR otherwise
+ */
+uint8_t ACC_GYRO_CheckID(void)
+{
+	uint8_t whoamI;
+
+	lsm6ds3_device_id_get(&sensorCtx, &whoamI);
+	if (whoamI != LSM6DS3_ID)
+	{
+		return ACC_ERROR;
+	}
+
+	return ACC_OK;
+}
+
+uint8_t ACC_IsDataReady(void)
+{
+	uint8_t reg;
+
+	lsm6ds3_xl_flag_data_ready_get(&sensorCtx, &reg);
+	return reg;
+}
+
+uint8_t GYRO_IsDataReady(void)
+{
+	uint8_t reg;
+
+	lsm6ds3_gy_flag_data_ready_get(&sensorCtx, &reg);
+	return reg;
 }
 
 /**
@@ -253,6 +325,7 @@ uint8_t ACC_ReadRawValues(axis3bit16_t *data_raw_acceleration)
 			memset(data_raw_acceleration->u8bit, 0, 3 * sizeof(int16_t));
 			lsm6ds3_acceleration_raw_get(&sensorCtx, data_raw_acceleration->u8bit);
 		}
+		else status = ACC_BUSY;
 
 		/* TODO: Supprimer apres test */
 		__enable_irq(); // Clear PRIMASK
@@ -285,6 +358,7 @@ uint8_t GYRO_ReadRawValues(axis3bit16_t *data_raw_angular_rate)
 			memset(data_raw_angular_rate->u8bit, 0, 3 * sizeof(int16_t));
 			lsm6ds3_angular_rate_raw_get(&sensorCtx, data_raw_angular_rate->u8bit);
 		}
+		else status = ACC_BUSY;
 
 		/* TODO: Supprimer apres test */
 		__enable_irq(); // Clear PRIMASK
@@ -311,13 +385,35 @@ uint8_t ACC_ReadValues(acceleration_t *acceleration)
 
 		if (status == ACC_OK)
 		{
+#if (LSM6DS3_ACC_FULL_SCALE == LSM6DS3_2g)
 			acceleration->x =
 					lsm6ds3_from_fs2g_to_mg(data_raw_acceleration.i16bit[0]);
 			acceleration->y =
 					lsm6ds3_from_fs2g_to_mg(data_raw_acceleration.i16bit[1]);
 			acceleration->z =
 					lsm6ds3_from_fs2g_to_mg(data_raw_acceleration.i16bit[2]);
-
+#elif (LSM6DS3_ACC_FULL_SCALE == LSM6DS3_4g)
+			acceleration->x =
+					lsm6ds3_from_fs4g_to_mg(data_raw_acceleration.i16bit[0]);
+			acceleration->y =
+					lsm6ds3_from_fs4g_to_mg(data_raw_acceleration.i16bit[1]);
+			acceleration->z =
+					lsm6ds3_from_fs4g_to_mg(data_raw_acceleration.i16bit[2]);
+#elif (LSM6DS3_ACC_FULL_SCALE == LSM6DS3_8g)
+			acceleration->x =
+					lsm6ds3_from_fs8g_to_mg(data_raw_acceleration.i16bit[0]);
+			acceleration->y =
+					lsm6ds3_from_fs8g_to_mg(data_raw_acceleration.i16bit[1]);
+			acceleration->z =
+					lsm6ds3_from_fs8g_to_mg(data_raw_acceleration.i16bit[2]);
+#else
+			acceleration->x =
+					lsm6ds3_from_fs16g_to_mg(data_raw_acceleration.i16bit[0]);
+			acceleration->y =
+					lsm6ds3_from_fs16g_to_mg(data_raw_acceleration.i16bit[1]);
+			acceleration->z =
+					lsm6ds3_from_fs16g_to_mg(data_raw_acceleration.i16bit[2]);
+#endif /* LSM6DS3_ACC_FULL_SCALE*/
 		}
 
 		/* TODO: Supprimer apres test */
@@ -348,14 +444,42 @@ uint8_t GYRO_ReadValues(angularRate_t *angular_rate)
 			/*
 			 * Read gyroscope field data
 			 */
-
+#if (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_125dps)
+			angular_rate->x =
+					lsm6ds3_from_fs125dps_to_mdps(data_raw_angular_rate.i16bit[0]-GyroCorrectionCoeffs[0]);
+			angular_rate->y =
+					lsm6ds3_from_fs125dps_to_mdps(data_raw_angular_rate.i16bit[1]-GyroCorrectionCoeffs[1]);
+			angular_rate->z =
+					lsm6ds3_from_fs125dps_to_mdps(data_raw_angular_rate.i16bit[2]-GyroCorrectionCoeffs[2]);
+#elif (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_250dps)
+			angular_rate->x =
+					lsm6ds3_from_fs250dps_to_mdps(data_raw_angular_rate.i16bit[0]);
+			angular_rate->y =
+					lsm6ds3_from_fs250dps_to_mdps(data_raw_angular_rate.i16bit[1]);
+			angular_rate->z =
+					lsm6ds3_from_fs250dps_to_mdps(data_raw_angular_rate.i16bit[2]);
+#elif (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_500dps)
+			angular_rate->x =
+					lsm6ds3_from_fs500dps_to_mdps(data_raw_angular_rate.i16bit[0]);
+			angular_rate->y =
+					lsm6ds3_from_fs500dps_to_mdps(data_raw_angular_rate.i16bit[1]);
+			angular_rate->z =
+					lsm6ds3_from_fs500dps_to_mdps(data_raw_angular_rate.i16bit[2]);
+#elif (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_1000dps)
+			angular_rate->x =
+					lsm6ds3_from_fs1000dps_to_mdps(data_raw_angular_rate.i16bit[0]);
+			angular_rate->y =
+					lsm6ds3_from_fs1000dps_to_mdps(data_raw_angular_rate.i16bit[1]);
+			angular_rate->z =
+					lsm6ds3_from_fs1000dps_to_mdps(data_raw_angular_rate.i16bit[2]);
+#else /* (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_2000dps) */
 			angular_rate->x =
 					lsm6ds3_from_fs2000dps_to_mdps(data_raw_angular_rate.i16bit[0]);
 			angular_rate->y =
 					lsm6ds3_from_fs2000dps_to_mdps(data_raw_angular_rate.i16bit[1]);
 			angular_rate->z =
 					lsm6ds3_from_fs2000dps_to_mdps(data_raw_angular_rate.i16bit[2]);
-
+#endif /* LSM6DS3_GYRO_FULL_SCALE */
 		}
 
 		/* TODO: Supprimer apres test */
@@ -365,6 +489,40 @@ uint8_t GYRO_ReadValues(angularRate_t *angular_rate)
 	return status;
 }
 
+/**
+ * @brief  Compute gyroscopic bias
+ * @retval Read status
+ */
+uint8_t GYRO_UpdateGyroBias(void)
+{
+	int i = 0;
+	axis3bit16_t data_raw_angular_rate;
+	int32_t TmpGyroCorrectionCoeffs[3] = {0};
+	uint8_t status;
+
+	GyroCorrectionCoeffs[0]=0;
+	GyroCorrectionCoeffs[1]=0;
+	GyroCorrectionCoeffs[2]=0;
+
+	HAL_Delay(1000);
+
+	for (i = 0; i < 100; i++) {
+		status = GYRO_ReadRawValues(&data_raw_angular_rate);
+
+		TmpGyroCorrectionCoeffs[0] += data_raw_angular_rate.i16bit[0];
+		TmpGyroCorrectionCoeffs[1] += data_raw_angular_rate.i16bit[1];
+		TmpGyroCorrectionCoeffs[2] += data_raw_angular_rate.i16bit[2];
+
+		HAL_Delay(10);
+	}
+
+	GyroCorrectionCoeffs[0] = TmpGyroCorrectionCoeffs[0]/100;
+	GyroCorrectionCoeffs[1] = TmpGyroCorrectionCoeffs[1]/100;
+	GyroCorrectionCoeffs[2] = TmpGyroCorrectionCoeffs[2]/100;
+
+	HAL_Delay(100);
+	return ACC_OK;
+}
 /**
  * @brief  Reads T° values in °C
  * @retval Read status
@@ -430,7 +588,7 @@ static int32_t platform_write(void *handle, uint8_t reg, uint8_t *bufp,
 		uint16_t len)
 {
 
-	HAL_I2C_Mem_Write(handle, LSM6DS3_I2C_ADD_H, reg,
+	HAL_I2C_Mem_Write(handle, LSM6DS3_I2C_ADD, reg,
 			I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
 
 
@@ -451,7 +609,7 @@ static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
 		uint16_t len)
 {
 
-	HAL_I2C_Mem_Read(handle, LSM6DS3_I2C_ADD_H, reg,
+	HAL_I2C_Mem_Read(handle, LSM6DS3_I2C_ADD, reg,
 			I2C_MEMADD_SIZE_8BIT, bufp, len, 1000);
 
 

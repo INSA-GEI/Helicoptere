@@ -22,6 +22,7 @@
 #include "main.h"
 #include "stm32l4xx_hal.h"
 
+#include "stdio.h"
 #include "string.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -56,10 +57,18 @@ static void MX_GPIO_Init(void);
 void RxXBEEData(char* data, uint16_t size);
 
 const char *testStr1="Ca a l'air de marcher\n";
+char printfBuffer[100];
 
 acceleration_t acceleration;
 angularRate_t angular_rate;
 float temperature_degC;
+
+int acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temp=0;
+float int_gyro_x,  int_gyro_y, int_gyro_z=0.0;
+int int_gyro_x_int,  int_gyro_y_int, int_gyro_z_int=0;
+
+int flagExti;
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -119,6 +128,8 @@ int main(void)
 	BASECOM_Init();
 
 	/* Demarre l'accelerometre et gyroscope */
+	flagExti=0;
+
 	ACC_GYRO_Init();
 
 	/* USER CODE END 2 */
@@ -130,42 +141,93 @@ int main(void)
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		HAL_Delay(1000);
-		//XBEE_SendData((char*)testStr1, strlen(testStr1));
-		ACC_ReadValues(&acceleration);
-		ACC_ReadTemperature(&temperature_degC);
-		GYRO_ReadValues(&angular_rate);
+		//HAL_Delay(10);
 
-//		MOTORS_SetTail(250);
-//		LED_SetMode(LED_MODE_IDLE);
-//		HAL_Delay(5000);
-//
-//		MOTORS_SetTail(500);
-//		LED_SetMode(LED_MODE_RUN);
-//		HAL_Delay(5000);
-//
-//		MOTORS_SetTail(750);
-//		LED_SetMode(LED_MODE_ERROR);
-//		HAL_Delay(5000);
-//
-//		MOTORS_SetTail(1000);
-//		LED_SetMode(LED_MODE_ON);
-//		HAL_Delay(5000);
+		//GYRO_ReadValues(&angular_rate);
+
+		if (flagExti==1)
+		{
+			flagExti=0;
+
+			sprintf (printfBuffer, "Gyro [%d,\t %d,\t %d]\nAcc [%d,\t %d,\t %d]\n\n",
+					(int)(angular_rate.x),
+					(int)(angular_rate.y),
+					(int)(angular_rate.z),
+					(int)(acceleration.x),
+					(int)(acceleration.y),
+					(int)(acceleration.z));
+
+			XBEE_SendData((char*)printfBuffer, strlen(printfBuffer));
+		}
+
+		//		MOTORS_SetTail(250);
+		//		LED_SetMode(LED_MODE_IDLE);
+		//		HAL_Delay(5000);
+		//
+		//		MOTORS_SetTail(500);
+		//		LED_SetMode(LED_MODE_RUN);
+		//		HAL_Delay(5000);
+		//
+		//		MOTORS_SetTail(750);
+		//		LED_SetMode(LED_MODE_ERROR);
+		//		HAL_Delay(5000);
+		//
+		//		MOTORS_SetTail(1000);
+		//		LED_SetMode(LED_MODE_ON);
+		//		HAL_Delay(5000);
 		//__WFI();
 	}
 	/* USER CODE END 3 */
 }
 
+/**
+ * @brief Xbee RX Callback
+ * @retval None
+ */
 void RxXBEEData(char* data, uint16_t size)
 {
-	static cnt=0;
-	char c;
+	static uint32_t cnt=0;
+	volatile char c;
 
 	c= data[0];
 
 	cnt++;
 	if (cnt==2) XBEE_StopReception();
 }
+
+/**
+ * @brief GPIO EXTI Callback
+ * @retval None
+ */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	static uint8_t counter=0;
+	acceleration_t acceleration_loc;
+	angularRate_t angular_rate_loc;
+
+	if (GYRO_ReadValues(&angular_rate_loc)==ACC_OK)
+	{
+		angular_rate.x = angular_rate_loc.x;
+		angular_rate.y = angular_rate_loc.y;
+		angular_rate.z = angular_rate_loc.z;
+	}
+
+	if (ACC_ReadValues(&acceleration_loc)==ACC_OK)
+	{
+		acceleration.x = acceleration_loc.x;
+		acceleration.y = acceleration_loc.y;
+		acceleration.z = acceleration_loc.z;
+	}
+
+	counter++;
+
+	if(counter>=4)
+	{
+		counter =0;
+		flagExti=1;
+	}
+}
+
 /**
  * @brief System Clock Configuration
  * @retval None
@@ -228,23 +290,10 @@ void SystemClock_Config(void)
  */
 static void MX_GPIO_Init(void)
 {
-	GPIO_InitTypeDef GPIO_InitStruct = {0};
-
 	/* GPIO Ports Clock Enable */
 	__HAL_RCC_GPIOC_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 	__HAL_RCC_GPIOB_CLK_ENABLE();
-
-	/*Configure GPIO pin : SENSOR_INT_Pin */
-	GPIO_InitStruct.Pin = SENSOR_INT_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(SENSOR_INT_GPIO_Port, &GPIO_InitStruct);
-
-	/* EXTI interrupt init*/
-	HAL_NVIC_SetPriority(EXTI1_IRQn, 0x09, 0);
-	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-
 }
 
 /* USER CODE BEGIN 4 */

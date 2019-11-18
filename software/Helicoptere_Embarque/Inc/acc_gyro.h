@@ -69,67 +69,58 @@ extern "C" {
 #define ACC_BUSY          ((uint8_t)0x02)
 #define ACC_NO_DATA       ((uint8_t)0x03)
 
+/* Driver settings */
+// If LSM6DS3_ADDRESS_HIGH is set, LSM6DS3 I2C Address High will be used instead of Adress Low (depending off SDO state)
+//#define LSM6DS3_ADDRESS_HIGH
 
-///* Definition for I2C peripheral */
-//#define DISCOVERY_EXT_I2Cx                               I2C1
-//#define DISCOVERY_EXT_I2Cx_CLK_ENABLE()                  __HAL_RCC_I2C1_CLK_ENABLE()
-//#define DISCOVERY_EXT_DMAx_CLK_ENABLE()                  __HAL_RCC_DMA1_CLK_ENABLE()
-//#define DISCOVERY_EXT_I2Cx_SCL_SDA_GPIO_CLK_ENABLE()     __HAL_RCC_GPIOB_CLK_ENABLE()
-//
-//#define DISCOVERY_EXT_I2Cx_FORCE_RESET()                 __HAL_RCC_I2C1_FORCE_RESET()
-//#define DISCOVERY_EXT_I2Cx_RELEASE_RESET()               __HAL_RCC_I2C1_RELEASE_RESET()
-//
-///* Definition for I2Cx Pins */
-//#define DISCOVERY_EXT_I2Cx_SCL_PIN                       GPIO_PIN_8
-//#define DISCOVERY_EXT_I2Cx_SCL_SDA_GPIO_PORT             GPIOB
-//#define DISCOVERY_EXT_I2Cx_SCL_SDA_AF                    GPIO_AF4_I2C1
-//#define DISCOVERY_EXT_I2Cx_SDA_PIN                       GPIO_PIN_9
-//
-///* I2C interrupt requests */
-//#define DISCOVERY_EXT_I2Cx_EV_IRQn                       I2C1_EV_IRQn
-//#define DISCOVERY_EXT_I2Cx_ER_IRQn                       I2C1_ER_IRQn
-//
-///* I2C TIMING Register define when I2C clock source is SYSCLK */
-///* I2C TIMING is calculated from APB1 source clock = 50 MHz */
-///* Due to the big MOFSET capacity for adapting the camera level the rising time is very large (>1us) */
-///* 0x40912732 takes in account the big rising and aims a clock of 100khz */
-//#ifndef DISCOVERY_I2Cx_TIMING
-//#define DISCOVERY_I2Cx_TIMING                      ((uint32_t)0x40912732)
-//#endif /* DISCOVERY_I2Cx_TIMING */
-//
-//
-//#define ACC_GYRO_I2Cx 					DISCOVERY_EXT_I2Cx
-//
-///* Definition for SPI clock resources */
-//#define ACC_GYRO_I2Cx_CLK_ENABLE()            __HAL_RCC_I2C1_CLK_ENABLE()
-//#define ACC_GYRO_I2Cx_CLK_DISABLE()           __HAL_RCC_I2C1_CLK_DISABLE()
-//#define ACC_GYRO_I2Cx_SDA_GPIO_CLK_ENABLE()   __HAL_RCC_GPIOG_CLK_ENABLE()
-//#define ACC_GYRO_I2Cx_SCL_GPIO_CLK_DISABLE()  __HAL_RCC_GPIOI_CLK_DISABLE()
-//
-///* Definition for I2C Pins */
-//#define ACC_GYRO_I2Cx_SCL_PIN               GPIO_PIN_1
-//#define ACC_GYRO_I2Cx_SCL_GPIO_PORT         GPIOA
-//#define ACC_GYRO_I2Cx_SDA_PIN              	GPIO_PIN_14
-//#define ACC_GYRO_I2Cx_SDA_GPIO_PORT        	GPIOB
-//
-//#define ACC_GYRO_I2Cx_FORCE_RESET()         __HAL_RCC_I2C1_FORCE_RESET()
-//#define ACC_GYRO_I2Cx_RELEASE_RESET()       __HAL_RCC_I2C1_RELEASE_RESET()
-//#define ACC_GYRO_I2Cx_SCL_SDA_AF            GPIO_AF4_I2C1
-//
-//#define ACC_GYRO_RCC_PERIPHCLK_I2Cx         RCC_PERIPHCLK_I2C1
-//#define ACC_GYRO_RCC_I2CxCLKSOURCE_SYSCLK   RCC_I2C1CLKSOURCE_PCLK1
-//
-//#define ACC_GYRO_I2C_TIMING 				DISCOVERY_I2Cx_TIMING
-//
-///**
-//  * @brief LSM6DS3 interrupt DRDY
-//  */
-//#define ACC_GYRO_DRDY_PIN                    GPIO_PIN_8
-//#define ACC_GYRO_DRDY_GPIO_PORT              GPIOA
-//#define ACC_GYRO_DRDY_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOA_CLK_ENABLE()
-//#define ACC_GYRO_DRDY_GPIO_CLK_DISABLE()     __HAL_RCC_GPIOA_CLK_DISABLE()
-//#define ACC_GYRO_DRDY_EXTI_IRQn              EXTI9_5_IRQn
+// Acceleration full scale
+// LSM6DS3_ACC_FULL_SCALE can take values off:
+// * LSM6DS3_2g
+// * LSM6DS3_4g
+// * LSM6DS3_8g
+// * LSM6DS3_16g
 
+#define LSM6DS3_ACC_FULL_SCALE LSM6DS3_2g
+
+// Acceleration Output Data Rate (update frequency)
+// LSM6DS3_ACC_ODR can take values off:
+// * LSM6DS3_XL_ODR_OFF
+// * LSM6DS3_XL_ODR_12Hz5  = 1,
+// * LSM6DS3_XL_ODR_26Hz   = 2,
+// * LSM6DS3_XL_ODR_52Hz   = 3,
+// * LSM6DS3_XL_ODR_104Hz  = 4,
+// * LSM6DS3_XL_ODR_208Hz  = 5,
+// * LSM6DS3_XL_ODR_416Hz  = 6,
+// * LSM6DS3_XL_ODR_833Hz  = 7,
+// * LSM6DS3_XL_ODR_1k66Hz = 8,
+// * LSM6DS3_XL_ODR_3k33Hz = 9,
+// * LSM6DS3_XL_ODR_6k66Hz = 10,
+
+#define LSM6DS3_ACC_ODR LSM6DS3_XL_ODR_416Hz
+
+// Gyroscope full scale
+// LSM6DS3_GYRO_FULL_SCALE can take values off:
+// * LSM6DS3_125dps
+// * LSM6DS3_250dps
+// * LSM6DS3_500dps
+// * LSM6DS3_1000dps
+// * LSM6DS3_2000dps
+
+#define LSM6DS3_GYRO_FULL_SCALE LSM6DS3_125dps
+
+// Gyroscope Output Data Rate (update frequency)
+// LSM6DS3_GYRO_ODR can take values off:
+// * LSM6DS3_GY_ODR_OFF    = 0,
+// * LSM6DS3_GY_ODR_12Hz5  = 1,
+// * LSM6DS3_GY_ODR_26Hz   = 2,
+// * LSM6DS3_GY_ODR_52Hz   = 3,
+// * LSM6DS3_GY_ODR_104Hz  = 4,
+// * LSM6DS3_GY_ODR_208Hz  = 5,
+// * LSM6DS3_GY_ODR_416Hz  = 6,
+// * LSM6DS3_GY_ODR_833Hz  = 7,
+// * LSM6DS3_GY_ODR_1k66Hz = 8,
+
+#define LSM6DS3_GYRO_ODR LSM6DS3_GY_ODR_416Hz
 /**
  * @}
  */
@@ -161,11 +152,15 @@ typedef struct
  */
 uint8_t ACC_GYRO_Init       (void);
 uint8_t ACC_GYRO_DeInit     (void);
-uint8_t ACC_ReadRawValues(axis3bit16_t *data_raw_acceleration);
-uint8_t GYRO_ReadRawValues(axis3bit16_t *data_raw_angular_rate);
-uint8_t ACC_ReadValues(acceleration_t *acceleration);
-uint8_t GYRO_ReadValues(angularRate_t *angular_rate);
-uint8_t ACC_ReadTemperature(float *temperature_degC);
+uint8_t ACC_GYRO_CheckID	(void);
+uint8_t ACC_IsDataReady		(void);
+uint8_t GYRO_IsDataReady	(void);
+uint8_t ACC_ReadRawValues	(axis3bit16_t *data_raw_acceleration);
+uint8_t GYRO_ReadRawValues	(axis3bit16_t *data_raw_angular_rate);
+uint8_t ACC_ReadValues		(acceleration_t *acceleration);
+uint8_t GYRO_ReadValues		(angularRate_t *angular_rate);
+uint8_t GYRO_UpdateGyroBias	(void);
+uint8_t ACC_ReadTemperature	(float *temperature_degC);
 
 /* These functions can be modified in case the current settings
    need to be changed for specific application needs */
