@@ -96,7 +96,7 @@ extern "C" {
 // * LSM6DS3_XL_ODR_3k33Hz = 9,
 // * LSM6DS3_XL_ODR_6k66Hz = 10,
 
-#define LSM6DS3_ACC_ODR LSM6DS3_XL_ODR_416Hz
+#define LSM6DS3_ACC_ODR LSM6DS3_XL_ODR_833Hz
 
 // Gyroscope full scale
 // LSM6DS3_GYRO_FULL_SCALE can take values off:
@@ -106,7 +106,7 @@ extern "C" {
 // * LSM6DS3_1000dps
 // * LSM6DS3_2000dps
 
-#define LSM6DS3_GYRO_FULL_SCALE LSM6DS3_125dps
+#define LSM6DS3_GYRO_FULL_SCALE LSM6DS3_2000dps
 
 // Gyroscope Output Data Rate (update frequency)
 // LSM6DS3_GYRO_ODR can take values off:
@@ -120,7 +120,7 @@ extern "C" {
 // * LSM6DS3_GY_ODR_833Hz  = 7,
 // * LSM6DS3_GY_ODR_1k66Hz = 8,
 
-#define LSM6DS3_GYRO_ODR LSM6DS3_GY_ODR_416Hz
+#define LSM6DS3_GYRO_ODR LSM6DS3_GY_ODR_833Hz
 /**
  * @}
  */

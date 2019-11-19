@@ -12,6 +12,7 @@ RM := rm -rf
 -include Src/subdir.mk
 -include Drivers/lsm6ds3/subdir.mk
 -include Drivers/STM32L4xx_HAL_Driver/Src/subdir.mk
+-include AHRS/subdir.mk
 -include subdir.mk
 -include objects.mk
 

@@ -55,19 +55,32 @@
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 void RxXBEEData(char* data, uint16_t size);
+void GetAndUpdateSensors(void);
+void SystickRequestAHRSUpdate(void);
 
-const char *testStr1="Ca a l'air de marcher\n";
+//const char *testStr1="Ca a l'air de marcher\n";
 char printfBuffer[100];
 
 acceleration_t acceleration;
 angularRate_t angular_rate;
-float temperature_degC;
 
-int acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temp=0;
-float int_gyro_x,  int_gyro_y, int_gyro_z=0.0;
-int int_gyro_x_int,  int_gyro_y_int, int_gyro_z_int=0;
+//int acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temp=0;
+//float int_gyro_x,  int_gyro_y, int_gyro_z=0.0;
+//int int_gyro_x_int,  int_gyro_y_int, int_gyro_z_int=0;
 
-int flagExti;
+typedef struct
+{
+	int32_t pitch;
+	int32_t roll;
+	int32_t yaw;
+} eulerAnglesInt_t;
+
+eulerAnglesInt_t EulerAnglesInt;
+
+eulerAngles_t EulerAngles;
+eulerAnglesInt_t EulerAnglesIntTmp[5];
+int flagSensors;
+int systickRequestFlag;
 
 /* USER CODE BEGIN PFP */
 
@@ -84,6 +97,8 @@ int flagExti;
  */
 int main(void)
 {
+	int counter=0;
+	int counter2=0;
 	/* USER CODE BEGIN 1 */
 	HAL_DeInit();
 	/* USER CODE END 1 */
@@ -128,9 +143,19 @@ int main(void)
 	BASECOM_Init();
 
 	/* Demarre l'accelerometre et gyroscope */
-	flagExti=0;
+	flagSensors=0;
+	systickRequestFlag=0;
 
-	ACC_GYRO_Init();
+	if (ACC_GYRO_Init() != ACC_OK) {
+		LED_SetMode(LED_MODE_ERROR);
+		sprintf (printfBuffer, "Error initializing sensors: Stop\n");
+		XBEE_SendData((char*)printfBuffer, strlen(printfBuffer));
+
+		while (1);
+	}
+
+	AHRS_Init();
+	HAL_GPIO_EXTI_Callback(GPIO_PIN_1);
 
 	/* USER CODE END 2 */
 
@@ -145,19 +170,54 @@ int main(void)
 
 		//GYRO_ReadValues(&angular_rate);
 
-		if (flagExti==1)
+		if (systickRequestFlag==1)
 		{
-			flagExti=0;
+			systickRequestFlag=0;
 
-			sprintf (printfBuffer, "Gyro [%d,\t %d,\t %d]\nAcc [%d,\t %d,\t %d]\n\n",
-					(int)(angular_rate.x),
-					(int)(angular_rate.y),
-					(int)(angular_rate.z),
-					(int)(acceleration.x),
-					(int)(acceleration.y),
-					(int)(acceleration.z));
+			SystickRequestAHRSUpdate();
+		}
 
-			XBEE_SendData((char*)printfBuffer, strlen(printfBuffer));
+		if (flagSensors==1)
+		{
+			flagSensors=0;
+			AHRS_UpdateQuaternions();
+
+			AHRS_GetEulerAngles(&EulerAngles);
+			EulerAnglesIntTmp[counter].pitch = (int32_t)(EulerAngles.pitch*100.0);
+			EulerAnglesIntTmp[counter].roll = (int32_t)(EulerAngles.roll*100.0);
+			EulerAnglesIntTmp[counter].yaw = (int32_t)(EulerAngles.yaw*100.0);
+
+			counter ++;
+			counter2++;
+
+			if (counter>=5)
+			{
+				int i;
+				counter=0;
+
+				for (i=0; i<5; i++)
+				{
+					EulerAngles.pitch += EulerAnglesIntTmp[i].pitch;
+					EulerAngles.roll += EulerAnglesIntTmp[i].roll;
+					EulerAngles.yaw += EulerAnglesIntTmp[i].yaw;
+				}
+
+				EulerAngles.pitch = EulerAngles.pitch/5;
+				EulerAngles.roll = EulerAngles.roll/5;
+				EulerAngles.yaw = EulerAngles.yaw/5;
+			}
+
+			if (counter2>=100)
+			{
+				counter2 =0;
+
+				sprintf (printfBuffer, "Angles [%d,\t %d,\t %d]\n",
+						(int)(EulerAngles.pitch/100),
+						(int)(EulerAngles.roll/100),
+						(int)(EulerAngles.yaw/100));
+
+				XBEE_SendData((char*)printfBuffer, strlen(printfBuffer));
+			}
 		}
 
 		//		MOTORS_SetTail(250);
@@ -195,13 +255,23 @@ void RxXBEEData(char* data, uint16_t size)
 	if (cnt==2) XBEE_StopReception();
 }
 
-/**
- * @brief GPIO EXTI Callback
- * @retval None
- */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+void SystickRequestAHRSUpdate(void)
 {
-	static uint8_t counter=0;
+	static int counter=0;
+	counter++;
+
+	if (counter>=2)
+	{
+		counter=0;
+
+		if (AHRS_Status == AHRS_RUN)
+			GetAndUpdateSensors();
+	}
+}
+
+void GetAndUpdateSensors(void)
+{
+	//	static uint8_t counter=0;
 	acceleration_t acceleration_loc;
 	angularRate_t angular_rate_loc;
 
@@ -219,13 +289,44 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		acceleration.z = acceleration_loc.z;
 	}
 
-	counter++;
+	AHRS_UpdateSensors(&acceleration, &angular_rate);
+	flagSensors=1;
+}
 
-	if(counter>=4)
+/**
+ * @brief GPIO EXTI Callback
+ * @retval None
+ */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	//	static uint8_t counter=0;
+	acceleration_t acceleration_loc;
+	angularRate_t angular_rate_loc;
+
+	if (GYRO_ReadValues(&angular_rate_loc)==ACC_OK)
 	{
-		counter =0;
-		flagExti=1;
+		angular_rate.x = angular_rate_loc.x;
+		angular_rate.y = angular_rate_loc.y;
+		angular_rate.z = angular_rate_loc.z;
 	}
+
+	if (ACC_ReadValues(&acceleration_loc)==ACC_OK)
+	{
+		acceleration.x = acceleration_loc.x;
+		acceleration.y = acceleration_loc.y;
+		acceleration.z = acceleration_loc.z;
+	}
+
+	AHRS_UpdateSensors(&acceleration, &angular_rate);
+	flagSensors=1;
+
+	//	counter++;
+	//
+	//	if(counter>=4)
+	//	{
+	//		counter =0;
+	//		flagSensors=1;
+	//	}
 }
 
 /**

@@ -38,6 +38,8 @@ extern "C" {
 #include "base_com.h"
 #include "acc_gyro.h"
 
+#include "AHRS.h"
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

@@ -16,6 +16,7 @@ C_DEPS :=
 
 # Every subdirectory with source files must be described here
 SUBDIRS := \
+AHRS \
 Drivers/STM32L4xx_HAL_Driver/Src \
 Drivers/lsm6ds3 \
 Src \

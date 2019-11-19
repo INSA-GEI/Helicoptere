@@ -1,0 +1,6 @@
+Hardware:
+	* penser a retirer sb2 et sb3 des nucleo (pour liberer l'uart2)
+	* connecter sb17 pour connecter MCO sur l'entrée oscillateur du micro
+	* Sur la nucleo de la base, penser a retirer sb10 (pour avoir acces à vref)
+
+Software:

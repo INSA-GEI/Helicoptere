@@ -139,11 +139,11 @@ static int32_t GyroCorrectionCoeffs[3] = {0};
 uint8_t ACC_GYRO_Init(void)
 { 
 	uint8_t whoamI,rst;
-	lsm6ds3_int1_route_t int_1_reg;
-	axis3bit16_t data;
+//	lsm6ds3_int1_route_t int_1_reg;
+//	axis3bit16_t data;
 
 	hi2c1.Instance = I2C1;
-	GPIO_InitTypeDef GPIO_InitStruct = {0};
+//	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
 	/* Call the DeInit function to reset the driver */
 	if (HAL_I2C_DeInit(&hi2c1) != HAL_OK)
@@ -231,24 +231,25 @@ uint8_t ACC_GYRO_Init(void)
 	/*
 	 * Enable interrupt generation on DRDY INT1 pin
 	 */
-	lsm6ds3_pin_int1_route_get(&sensorCtx, &int_1_reg);
-	int_1_reg.int1_drdy_g = PROPERTY_ENABLE;
-	int_1_reg.int1_drdy_xl = PROPERTY_ENABLE;
-	lsm6ds3_pin_int1_route_set(&sensorCtx, &int_1_reg);
-
-	/* Configure GPIO pin : SENSOR_INT_Pin */
-	GPIO_InitStruct.Pin = SENSOR_INT_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(SENSOR_INT_GPIO_Port, &GPIO_InitStruct);
-
-	/* EXTI interrupt init*/
-	HAL_NVIC_SetPriority(EXTI1_IRQn, 0x09, 0);
-	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+//	lsm6ds3_pin_int1_route_get(&sensorCtx, &int_1_reg);
+//	int_1_reg.int1_drdy_g = PROPERTY_ENABLE;
+//	int_1_reg.int1_drdy_xl = PROPERTY_ENABLE;
+//	lsm6ds3_pin_int1_route_set(&sensorCtx, &int_1_reg);
+//
+//	/* Configure GPIO pin : SENSOR_INT_Pin */
+//	GPIO_InitStruct.Pin = SENSOR_INT_Pin;
+//	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+//	GPIO_InitStruct.Pull = GPIO_NOPULL;
+//	HAL_GPIO_Init(SENSOR_INT_GPIO_Port, &GPIO_InitStruct);
+//
+//	/* EXTI interrupt init*/
+//	HAL_NVIC_SetPriority(EXTI1_IRQn, 0x09, 0);
+//	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_1);
+//	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
 	/* Do some dummy reads to flush It */
-	lsm6ds3_acceleration_raw_get(&sensorCtx, data.u8bit);
-	lsm6ds3_angular_rate_raw_get(&sensorCtx, data.u8bit);
+//	lsm6ds3_acceleration_raw_get(&sensorCtx, data.u8bit);
+//	lsm6ds3_angular_rate_raw_get(&sensorCtx, data.u8bit);
 
 	return ACC_OK;
 }
@@ -385,35 +386,42 @@ uint8_t ACC_ReadValues(acceleration_t *acceleration)
 
 		if (status == ACC_OK)
 		{
-#if (LSM6DS3_ACC_FULL_SCALE == LSM6DS3_2g)
-			acceleration->x =
-					lsm6ds3_from_fs2g_to_mg(data_raw_acceleration.i16bit[0]);
-			acceleration->y =
-					lsm6ds3_from_fs2g_to_mg(data_raw_acceleration.i16bit[1]);
-			acceleration->z =
-					lsm6ds3_from_fs2g_to_mg(data_raw_acceleration.i16bit[2]);
-#elif (LSM6DS3_ACC_FULL_SCALE == LSM6DS3_4g)
-			acceleration->x =
-					lsm6ds3_from_fs4g_to_mg(data_raw_acceleration.i16bit[0]);
-			acceleration->y =
-					lsm6ds3_from_fs4g_to_mg(data_raw_acceleration.i16bit[1]);
-			acceleration->z =
-					lsm6ds3_from_fs4g_to_mg(data_raw_acceleration.i16bit[2]);
-#elif (LSM6DS3_ACC_FULL_SCALE == LSM6DS3_8g)
-			acceleration->x =
-					lsm6ds3_from_fs8g_to_mg(data_raw_acceleration.i16bit[0]);
-			acceleration->y =
-					lsm6ds3_from_fs8g_to_mg(data_raw_acceleration.i16bit[1]);
-			acceleration->z =
-					lsm6ds3_from_fs8g_to_mg(data_raw_acceleration.i16bit[2]);
-#else
-			acceleration->x =
-					lsm6ds3_from_fs16g_to_mg(data_raw_acceleration.i16bit[0]);
-			acceleration->y =
-					lsm6ds3_from_fs16g_to_mg(data_raw_acceleration.i16bit[1]);
-			acceleration->z =
-					lsm6ds3_from_fs16g_to_mg(data_raw_acceleration.i16bit[2]);
-#endif /* LSM6DS3_ACC_FULL_SCALE*/
+			if (LSM6DS3_ACC_FULL_SCALE == LSM6DS3_2g)
+			{
+				acceleration->x =
+						lsm6ds3_from_fs2g_to_mg(data_raw_acceleration.i16bit[0]);
+				acceleration->y =
+						lsm6ds3_from_fs2g_to_mg(data_raw_acceleration.i16bit[1]);
+				acceleration->z =
+						lsm6ds3_from_fs2g_to_mg(data_raw_acceleration.i16bit[2]);
+			}
+			else if (LSM6DS3_ACC_FULL_SCALE == LSM6DS3_4g)
+			{
+				acceleration->x =
+						lsm6ds3_from_fs4g_to_mg(data_raw_acceleration.i16bit[0]);
+				acceleration->y =
+						lsm6ds3_from_fs4g_to_mg(data_raw_acceleration.i16bit[1]);
+				acceleration->z =
+						lsm6ds3_from_fs4g_to_mg(data_raw_acceleration.i16bit[2]);
+			}
+			else if (LSM6DS3_ACC_FULL_SCALE == LSM6DS3_8g)
+			{
+				acceleration->x =
+						lsm6ds3_from_fs8g_to_mg(data_raw_acceleration.i16bit[0]);
+				acceleration->y =
+						lsm6ds3_from_fs8g_to_mg(data_raw_acceleration.i16bit[1]);
+				acceleration->z =
+						lsm6ds3_from_fs8g_to_mg(data_raw_acceleration.i16bit[2]);
+			}
+			else /* LSM6DS3_ACC_FULL_SCALE == LSM6DS3_16g */
+			{
+				acceleration->x =
+						lsm6ds3_from_fs16g_to_mg(data_raw_acceleration.i16bit[0]);
+				acceleration->y =
+						lsm6ds3_from_fs16g_to_mg(data_raw_acceleration.i16bit[1]);
+				acceleration->z =
+						lsm6ds3_from_fs16g_to_mg(data_raw_acceleration.i16bit[2]);
+			}
 		}
 
 		/* TODO: Supprimer apres test */
@@ -444,42 +452,51 @@ uint8_t GYRO_ReadValues(angularRate_t *angular_rate)
 			/*
 			 * Read gyroscope field data
 			 */
-#if (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_125dps)
-			angular_rate->x =
-					lsm6ds3_from_fs125dps_to_mdps(data_raw_angular_rate.i16bit[0]-GyroCorrectionCoeffs[0]);
-			angular_rate->y =
-					lsm6ds3_from_fs125dps_to_mdps(data_raw_angular_rate.i16bit[1]-GyroCorrectionCoeffs[1]);
-			angular_rate->z =
-					lsm6ds3_from_fs125dps_to_mdps(data_raw_angular_rate.i16bit[2]-GyroCorrectionCoeffs[2]);
-#elif (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_250dps)
-			angular_rate->x =
-					lsm6ds3_from_fs250dps_to_mdps(data_raw_angular_rate.i16bit[0]);
-			angular_rate->y =
-					lsm6ds3_from_fs250dps_to_mdps(data_raw_angular_rate.i16bit[1]);
-			angular_rate->z =
-					lsm6ds3_from_fs250dps_to_mdps(data_raw_angular_rate.i16bit[2]);
-#elif (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_500dps)
-			angular_rate->x =
-					lsm6ds3_from_fs500dps_to_mdps(data_raw_angular_rate.i16bit[0]);
-			angular_rate->y =
-					lsm6ds3_from_fs500dps_to_mdps(data_raw_angular_rate.i16bit[1]);
-			angular_rate->z =
-					lsm6ds3_from_fs500dps_to_mdps(data_raw_angular_rate.i16bit[2]);
-#elif (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_1000dps)
-			angular_rate->x =
-					lsm6ds3_from_fs1000dps_to_mdps(data_raw_angular_rate.i16bit[0]);
-			angular_rate->y =
-					lsm6ds3_from_fs1000dps_to_mdps(data_raw_angular_rate.i16bit[1]);
-			angular_rate->z =
-					lsm6ds3_from_fs1000dps_to_mdps(data_raw_angular_rate.i16bit[2]);
-#else /* (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_2000dps) */
-			angular_rate->x =
-					lsm6ds3_from_fs2000dps_to_mdps(data_raw_angular_rate.i16bit[0]);
-			angular_rate->y =
-					lsm6ds3_from_fs2000dps_to_mdps(data_raw_angular_rate.i16bit[1]);
-			angular_rate->z =
-					lsm6ds3_from_fs2000dps_to_mdps(data_raw_angular_rate.i16bit[2]);
-#endif /* LSM6DS3_GYRO_FULL_SCALE */
+			if (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_125dps)
+			{
+				angular_rate->x =
+						lsm6ds3_from_fs125dps_to_mdps(data_raw_angular_rate.i16bit[0]-GyroCorrectionCoeffs[0]);
+				angular_rate->y =
+						lsm6ds3_from_fs125dps_to_mdps(data_raw_angular_rate.i16bit[1]-GyroCorrectionCoeffs[1]);
+				angular_rate->z =
+						lsm6ds3_from_fs125dps_to_mdps(data_raw_angular_rate.i16bit[2]-GyroCorrectionCoeffs[2]);
+			}
+			else if (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_250dps)
+			{
+				angular_rate->x =
+						lsm6ds3_from_fs250dps_to_mdps(data_raw_angular_rate.i16bit[0]-GyroCorrectionCoeffs[0]);
+				angular_rate->y =
+						lsm6ds3_from_fs250dps_to_mdps(data_raw_angular_rate.i16bit[1]-GyroCorrectionCoeffs[1]);
+				angular_rate->z =
+						lsm6ds3_from_fs250dps_to_mdps(data_raw_angular_rate.i16bit[2]-GyroCorrectionCoeffs[2]);
+			}
+			else if (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_500dps)
+			{
+				angular_rate->x =
+						lsm6ds3_from_fs500dps_to_mdps(data_raw_angular_rate.i16bit[0]-GyroCorrectionCoeffs[0]);
+				angular_rate->y =
+						lsm6ds3_from_fs500dps_to_mdps(data_raw_angular_rate.i16bit[1]-GyroCorrectionCoeffs[1]);
+				angular_rate->z =
+						lsm6ds3_from_fs500dps_to_mdps(data_raw_angular_rate.i16bit[2]-GyroCorrectionCoeffs[2]);
+			}
+			else if (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_1000dps)
+			{
+				angular_rate->x =
+						lsm6ds3_from_fs1000dps_to_mdps(data_raw_angular_rate.i16bit[0]-GyroCorrectionCoeffs[0]);
+				angular_rate->y =
+						lsm6ds3_from_fs1000dps_to_mdps(data_raw_angular_rate.i16bit[1]-GyroCorrectionCoeffs[1]);
+				angular_rate->z =
+						lsm6ds3_from_fs1000dps_to_mdps(data_raw_angular_rate.i16bit[2]-GyroCorrectionCoeffs[2]);
+			}
+			else /* (LSM6DS3_GYRO_FULL_SCALE == LSM6DS3_2000dps) */
+			{
+				angular_rate->x =
+						lsm6ds3_from_fs2000dps_to_mdps(data_raw_angular_rate.i16bit[0]-GyroCorrectionCoeffs[0]);
+				angular_rate->y =
+						lsm6ds3_from_fs2000dps_to_mdps(data_raw_angular_rate.i16bit[1]-GyroCorrectionCoeffs[1]);
+				angular_rate->z =
+						lsm6ds3_from_fs2000dps_to_mdps(data_raw_angular_rate.i16bit[2]-GyroCorrectionCoeffs[2]);
+			}
 		}
 
 		/* TODO: Supprimer apres test */
@@ -498,7 +515,6 @@ uint8_t GYRO_UpdateGyroBias(void)
 	int i = 0;
 	axis3bit16_t data_raw_angular_rate;
 	int32_t TmpGyroCorrectionCoeffs[3] = {0};
-	uint8_t status;
 
 	GyroCorrectionCoeffs[0]=0;
 	GyroCorrectionCoeffs[1]=0;
@@ -507,7 +523,7 @@ uint8_t GYRO_UpdateGyroBias(void)
 	HAL_Delay(1000);
 
 	for (i = 0; i < 100; i++) {
-		status = GYRO_ReadRawValues(&data_raw_angular_rate);
+		GYRO_ReadRawValues(&data_raw_angular_rate);
 
 		TmpGyroCorrectionCoeffs[0] += data_raw_angular_rate.i16bit[0];
 		TmpGyroCorrectionCoeffs[1] += data_raw_angular_rate.i16bit[1];
