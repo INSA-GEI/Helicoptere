@@ -54,6 +54,7 @@ dkms.conf
 # kicad
 *.bak
 *.kicad_pcb-bak
+*.sch-bak
 
 # documentations
 *.pdf
@@ -71,3 +72,21 @@ dkms.conf
 *.uvgui*
 *.bak
 *.axf
+
+# Fichiers Gerbers
+*.gbl
+*.gbs
+*.gbo
+*.gm1
+*.gtl
+*.gts
+*.gto
+*.gbr
+*.gbp
+*.gtp
+*.dcm
+*.drl
+
+# Repertoire a exclure
+software/Helicoptere_Embarque/Debug/
+software/Helicoptere_Base/Debug/
