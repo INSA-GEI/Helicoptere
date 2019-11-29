@@ -1,8 +1,8 @@
 /**
  ******************************************************************************
- * File Name          : USART.h
+ * File Name          : TIM.h
  * Description        : This file provides code for the configuration
- *                      of the USART instances.
+ *                      of the TIM instances.
  ******************************************************************************
  * @attention
  *
@@ -17,8 +17,8 @@
  ******************************************************************************
  */
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __usart_H
-#define __usart_H
+#ifndef __tim_H
+#define __tim_H
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -26,21 +26,30 @@ extern "C" {
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
-typedef void (*UART_ReceptionCallbackTypeDef)(char* data, uint16_t size);
+/* USER CODE BEGIN Includes */
+#define LED_MODE_IDLE 	0
+#define LED_MODE_RUN 	1
+#define LED_MODE_ERROR 	2
+#define LED_MODE_OFF 	3
+#define LED_MODE_ON		4
+/* USER CODE END Includes */
 
-void UART_Init(void);
-void UART_MspInit(void);
-void UART_MspDeInit(void);
+/* USER CODE BEGIN Private defines */
 
-void UART_AddReceptionCallback (UART_ReceptionCallbackTypeDef callback);
-void UART_SendData (char* data, uint16_t size);
-void UART_StartReception(void);
-void UART_StopReception(void);
+/* USER CODE END Private defines */
+
+void LED_Init(void);
+
+void LED_MspPostInit(TIM_HandleTypeDef *htim);
+
+/* USER CODE BEGIN Prototypes */
+void LED_SetMode(int mode);
+/* USER CODE END Prototypes */
 
 #ifdef __cplusplus
 }
 #endif
-#endif /*__ usart_H */
+#endif /*__ tim_H */
 
 /**
  * @}

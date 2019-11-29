@@ -4,3 +4,10 @@ Hardware:
 	* Sur la nucleo de la base, penser a retirer sb10 (pour avoir acces à vref)
 
 Software:
+	AHRS (Helicoptere Embarque): Frequence d'echantillonage (sur le capteur) à 816 Hz, 
+                                     Recuperation des valeurs accelero et gyro sous Systick à 500 Hz
+                                     Moyenne des 5 dernieres valeurs et mise a jour des valeurs sur AHRS à 100Hz
+                                     -> voir pour augmenter la freq d'echantillonage capteurs à > 2Khz et remonter les données directement sur AHRS
+                                     -> Derive actuelle: environ 1° pour 2-3 minutes
+                                     -> Pb autour de 180°: pb lors du calcul des angles d'euler (pas de non linearité)
+                                     -> tester la solution ST (Cube-MEMS-X)

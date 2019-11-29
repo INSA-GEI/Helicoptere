@@ -164,7 +164,7 @@ uint8_t ACC_GYRO_Init(void)
 	{
 		Error_Handler();
 	}
-	/** Configure Analogue filter
+	/** Configure Analog filter
 	 */
 	if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
 	{

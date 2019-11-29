@@ -28,6 +28,9 @@
 
 /* USER CODE BEGIN Includes */
 
+#define ADC_CHANNEL_FRONT 0
+#define ADC_CHANNEL_REAR  1
+
 /* USER CODE END Includes */
 
 extern ADC_HandleTypeDef hadc;
@@ -36,9 +39,11 @@ extern ADC_HandleTypeDef hadc;
 
 /* USER CODE END Private defines */
 
-void MX_ADC_Init(void);
+void ADC_Init(void);
 
 /* USER CODE BEGIN Prototypes */
+uint16_t ADC_GetChannelRaw(uint8_t channel);
+uint16_t ADC_GetChannelVoltage(uint8_t channel); // value returned in mV
 
 /* USER CODE END Prototypes */
 
