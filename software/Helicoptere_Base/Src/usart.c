@@ -39,7 +39,7 @@ static uint32_t UART_RawBufferIndex;
 void UART_Init(void)
 {
 	huart2.Instance = USART2;
-	huart2.Init.BaudRate = 250000;
+	huart2.Init.BaudRate = 115200;
 	huart2.Init.WordLength = UART_WORDLENGTH_8B;
 	huart2.Init.StopBits = UART_STOPBITS_1;
 	huart2.Init.Parity = UART_PARITY_NONE;
@@ -55,7 +55,7 @@ void UART_Init(void)
 	}
 }
 
-void UART_MspInit(void)
+void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 {
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
@@ -93,7 +93,7 @@ void UART_MspInit(void)
 		Error_Handler();
 	}
 
-	__HAL_LINKDMA(&huart2,hdmatx,hdma_usart2_tx);
+	__HAL_LINKDMA(huart,hdmatx,hdma_usart2_tx);
 
 	/* USART2 interrupt Init */
 	HAL_NVIC_SetPriority(USART2_IRQn, 0x04, 0);
@@ -108,7 +108,7 @@ void UART_MspInit(void)
 
 }
 
-void UART_MspDeInit(void)
+void HAL_UART_MspDeInit(UART_HandleTypeDef *huart)
 {
 	__HAL_RCC_USART2_CLK_DISABLE();
 
@@ -119,7 +119,7 @@ void UART_MspDeInit(void)
 	HAL_GPIO_DeInit(GPIOA, USART_TX_Pin|USART_RX_Pin);
 
 	/* USART2 DMA DeInit */
-	HAL_DMA_DeInit(huart2.hdmatx);
+	HAL_DMA_DeInit(huart->hdmatx);
 
 	/* USART2 interrupt Deinit */
 	HAL_NVIC_DisableIRQ(USART2_IRQn);
@@ -199,7 +199,7 @@ static void UART_RxISR(UART_HandleTypeDef *huart)
 	__HAL_UART_SEND_REQ(huart, UART_RXDATA_FLUSH_REQUEST);
 	uhdata = (uint8_t)uhdata;
 
-	if (uhdata!=0x0D)
+	if ((uhdata!='\r')&&(uhdata!='\n'))
 	{
 		UART_RawBuffer[UART_RawBufferIndex]=(char)uhdata;
 		UART_RawBufferIndex++;

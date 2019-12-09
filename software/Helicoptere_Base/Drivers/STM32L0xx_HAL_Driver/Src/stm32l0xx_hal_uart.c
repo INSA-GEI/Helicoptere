@@ -2205,11 +2205,10 @@ void HAL_UART_IRQHandler(UART_HandleTypeDef *huart)
   uint32_t cr1its     = READ_REG(huart->Instance->CR1);
   uint32_t cr3its     = READ_REG(huart->Instance->CR3);
 
-  uint32_t errorflags;
+  uint32_t errorflags=0;
   uint32_t errorcode;
 
-  /* If no error occurs */
-  errorflags = (isrflags & (uint32_t)(USART_ISR_PE | USART_ISR_FE | USART_ISR_ORE | USART_ISR_NE));
+  /* Get RX data if received */
   if (errorflags == 0U)
   {
     /* UART in mode Receiver ---------------------------------------------------*/
@@ -2223,6 +2222,9 @@ void HAL_UART_IRQHandler(UART_HandleTypeDef *huart)
       return;
     }
   }
+
+  /* If no error occurs */
+  errorflags = (isrflags & (uint32_t)(USART_ISR_PE | USART_ISR_FE | USART_ISR_ORE | USART_ISR_NE));
 
   /* If some errors occur */
   if ((errorflags != 0U)
@@ -2260,7 +2262,8 @@ void HAL_UART_IRQHandler(UART_HandleTypeDef *huart)
     {
       __HAL_UART_CLEAR_FLAG(huart, UART_CLEAR_OREF);
 
-      huart->ErrorCode |= HAL_UART_ERROR_ORE;
+      //Silently ignore Overrun error
+      //huart->ErrorCode |= HAL_UART_ERROR_ORE;
     }
 
     /* Call UART Error Call back function if need be --------------------------*/

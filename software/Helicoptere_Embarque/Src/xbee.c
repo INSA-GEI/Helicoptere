@@ -97,11 +97,11 @@ void XBEE_MspInit(void)
 	__HAL_LINKDMA(&huart1,hdmatx,hdma_usart1_tx);
 
 	/* USART1 interrupt Init */
-	HAL_NVIC_SetPriority(USART1_IRQn, 0x07, 0);
+	HAL_NVIC_SetPriority(USART1_IRQn, 0x0B, 0);
 	HAL_NVIC_EnableIRQ(USART1_IRQn);
 
 	/* DMA1_Channel4 interrupt init */
-	HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0x08, 0);
+	HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0x03, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
 }
 
@@ -197,12 +197,13 @@ static void XBEE_RxISR(UART_HandleTypeDef *huart)
 	__HAL_UART_SEND_REQ(huart, UART_RXDATA_FLUSH_REQUEST);
 	uhdata = (uint8_t)uhdata;
 
-	if (uhdata!=0x0D)
+
+	if ((uhdata!='\r')&&(uhdata!='\n'))
 	{
 		XBEE_RawBuffer[XBEE_RawBufferIndex]=(char)uhdata;
 		XBEE_RawBufferIndex++;
 	}
-	else
+	else if (uhdata!='\n')
 	{
 		XBEE_RawBuffer[XBEE_RawBufferIndex]=0;
 		XBEE_RawBufferIndex++;

@@ -2,6 +2,7 @@
 #define SENSORS_H
 
 #include "main.h"
+#include "acc_gyro.h"
 
 //#define OUT_QUATERNION
 #define OUT_EULER

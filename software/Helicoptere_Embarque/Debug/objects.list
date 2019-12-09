@@ -23,6 +23,7 @@
 "Drivers/lsm6ds3/lsm6ds3_reg.o"
 "Src/acc_gyro.o"
 "Src/base_com.o"
+"Src/debug.o"
 "Src/led.o"
 "Src/main.o"
 "Src/motors.o"

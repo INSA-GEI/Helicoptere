@@ -27,9 +27,9 @@
 ADC_HandleTypeDef hadc;
 DMA_HandleTypeDef hdma_adc;
 
-#define ADC_BUFFER_SIZE 16
-#define ADC_CHANNEL_0_MAX 0x300
-#define ADC_CHANNEL_1_MAX 0x300
+#define ADC_BUFFER_SIZE 	32
+#define ADC_CHANNEL_0_MAX 	3350
+#define ADC_CHANNEL_1_MAX 	3341
 
 uint16_t ADC_RawBuffer[ADC_BUFFER_SIZE][2]={0};
 uint16_t ADC_NormalizedBuffer[2];
@@ -54,7 +54,7 @@ void ADC_Init(void)
 	hadc.Init.OversamplingMode = DISABLE;
 	hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
 	hadc.Init.Resolution = ADC_RESOLUTION_12B;
-	hadc.Init.SamplingTime= ADC_SAMPLETIME_12CYCLES_5;
+	hadc.Init.SamplingTime= ADC_SAMPLETIME_160CYCLES_5;
 	hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
 	hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
 	hadc.Init.ContinuousConvMode = ENABLE;
@@ -214,7 +214,8 @@ uint16_t ADC_GetChannelVoltage(uint8_t channel)
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-	uint32_t acc0, acc1=0;
+	uint32_t acc0=0;
+	uint32_t acc1=0;
 
 	for (int i=0; i<ADC_BUFFER_SIZE; i++)
 	{
@@ -224,8 +225,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 
 	ADC_NormalizedBuffer[0] = acc0/ADC_BUFFER_SIZE;
 	ADC_NormalizedBuffer[1] = acc1/ADC_BUFFER_SIZE;
-
-	//HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC_RawBuffer, 2*ADC_BUFFER_SIZE);
 }
 /* USER CODE END 1 */
 

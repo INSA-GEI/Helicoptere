@@ -39,6 +39,7 @@ extern "C" {
 #include "acc_gyro.h"
 
 #include "AHRS.h"
+#include "debug.h"
 
 /* USER CODE END Includes */
 

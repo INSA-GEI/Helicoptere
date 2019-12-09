@@ -32,8 +32,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-uint8_t SYSTICK_1msEvent=0;
+volatile uint8_t SYSTICK_1msEvent=0;
 void ReceptionCallback(char* data, uint16_t size);
+void ConvertOutputValues (int32_t valAnglePitch,int32_t valAngleYaw,int32_t valMdpsPitch,int32_t valMdpsYaw);
 
 /* USER CODE END Includes */
 
@@ -64,9 +65,18 @@ void ReceptionCallback(char* data, uint16_t size);
 /* USER CODE BEGIN PV */
 uint32_t InputValues[2]={0};
 uint32_t OutputValues[4]={0};
+const uint32_t DAC_CALIBRATION[]={3845,3900,3890,3885}; // DAC values for 10V output, per channel
+const uint32_t ADC_CALIBRATION[]={0,0}; //ADC values for 10V input, per channel
 
-char SendBuffer[20];
+char SendBuffer[100];
+char ResetString[] = "ATRS\n\r\0";
 
+volatile int32_t testAnglePitch, testAngleYaw, testMdpsPitch, testMdpsYaw=0;
+volatile int32_t valAnglePitch,valAngleYaw,valMdpsPitch,valMdpsYaw=0;
+
+volatile int messageCounter=0;
+volatile char messageReceived=0;
+volatile int counter_10ms=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -108,21 +118,30 @@ int main(void)
 	/* USER CODE END SysInit */
 
 	/* Initialize all configured peripherals */
+	DEBUG_Init();
+	LED_Init();
+	LED_SetMode(LED_MODE_ON);
 
 	ADC_Init();
 	SPIDAC_Init();
-	LED_Init();
+
 	UART_Init();
+
+	/* Envoi de la commande Reset à la carte embarqué (arret moteurs + recalibration AHRS) */
+	UART_SendData(ResetString, strlen(ResetString));
+
 	/* USER CODE BEGIN 2 */
-	LED_SetMode(LED_MODE_OFF);
+
 
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
-	LED_SetMode(LED_MODE_RUN);
+
 	UART_AddReceptionCallback(ReceptionCallback);
 	UART_StartReception();
+
+	LED_SetMode(LED_MODE_ERROR);
 
 	while (1)
 	{
@@ -131,18 +150,36 @@ int main(void)
 		{
 			SYSTICK_1msEvent=0;
 
-			InputValues[FRONT_CMD]=ADC_GetChannelVoltage(ADC_CHANNEL_FRONT);
-			InputValues[REAR_CMD]=ADC_GetChannelVoltage(ADC_CHANNEL_REAR);
+			counter_10ms++;
+			if (counter_10ms>=10)
+			{
+				counter_10ms=0;
+				// Get command value (input), convert them to millivolt (from 0 to 10000 millivolt) and send them to embedded board
+				InputValues[FRONT_CMD]=ADC_GetChannelVoltage(ADC_CHANNEL_FRONT);
+				InputValues[REAR_CMD]=ADC_GetChannelVoltage(ADC_CHANNEL_REAR);
 
-			sprintf (SendBuffer,">%lu,%lu\n",InputValues[FRONT_CMD],InputValues[REAR_CMD]);
-			UART_SendData(SendBuffer, strlen(SendBuffer));
+				DEBUG_ENTERSECTION(DEBUG_SECTION_1);
+				sprintf (SendBuffer,">%lu,%lu\n\r",InputValues[FRONT_CMD],InputValues[REAR_CMD]);
+				UART_SendData(SendBuffer, strlen(SendBuffer));
+				DEBUG_LEAVESECTION(DEBUG_SECTION_1);
+			}
 
+			// Send output values to dac
 			SPIDAC_SetValue(SPIDAC_CHANNEL_ANGLE_PITCH, (uint16_t)OutputValues[ANGLE_PITCH]);
 			SPIDAC_SetValue(SPIDAC_CHANNEL_MDPS_PITCH, (uint16_t)OutputValues[MDPS_PITCH]);
 			SPIDAC_SetValue(SPIDAC_CHANNEL_ANGLE_YAW, (uint16_t)OutputValues[ANGLE_YAW]);
 			SPIDAC_SetValue(SPIDAC_CHANNEL_MDPS_YAW, (uint16_t)OutputValues[MDPS_YAW]);
 			SPIDAC_LatchInputs();
 
+			messageCounter++;
+
+			if (messageCounter>=1000) // pas de message valable recu depuis 1 seconde
+			{
+				messageCounter=0;
+				messageReceived=0;
+
+				LED_SetMode(LED_MODE_ERROR);
+			}
 		}
 		/* USER CODE BEGIN 3 */
 	}
@@ -197,21 +234,96 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void ConvertOutputValues (int32_t valAnglePitch,int32_t valAngleYaw,int32_t valMdpsPitch,int32_t valMdpsYaw)
+{
+	// les angles sont donnés en centieme de degree et les vitesses en centieme de dps
+
+	// Saturation de anglePitch (-45<=anglePitch<=45)
+	if (valAnglePitch<-4500)
+		valAnglePitch=-4500;
+	else if (valAnglePitch>4500)
+		valAnglePitch=4500;
+
+	// ramener la sortie dans l'intervalle [0,10V] pour la plage d'angle [-45°,45°]
+	OutputValues[ANGLE_PITCH] = ((valAnglePitch+4500)*10000l/9000l);
+
+	// Utiliser la calibration du DAC pour rester dans l'interval [0,10V]
+	OutputValues[ANGLE_PITCH] = OutputValues[ANGLE_PITCH]* DAC_CALIBRATION[ANGLE_PITCH]/10000l;
+
+
+	// Saturation de mdpsPitch (-2000<=valMdpsPitch<=2000)
+	if (valMdpsPitch<-2000)
+		valMdpsPitch=-2000;
+	else if (valMdpsPitch>2000)
+		valMdpsPitch=2000;
+
+	// ramener la sortie dans l'intervalle [0,10V] pour la plage d'angle [-20000 mdps,20000 mdps]
+	OutputValues[MDPS_PITCH] = ((valMdpsPitch+2000)*10000l/4000l);
+
+	// Utiliser la calibration du DAC pour rester dans l'interval [0,10V]
+	OutputValues[MDPS_PITCH] = OutputValues[MDPS_PITCH]* DAC_CALIBRATION[MDPS_PITCH]/10000l;
+
+
+	// Saturation de angleYaw (-180<=valAngleYaw<=180)
+	if (valAngleYaw<-18000)
+		valAngleYaw=-18000;
+	else if (valAngleYaw>18000)
+		valAngleYaw=18000;
+
+	// ramener la sortie dans l'intervalle [0,10V] pour la plage d'angle [-180°,180°]
+	OutputValues[ANGLE_YAW] = ((valAngleYaw+18000)*10000l/36000l);
+
+	// Utiliser la calibration du DAC pour rester dans l'interval [0,10V]
+	OutputValues[ANGLE_YAW] = OutputValues[ANGLE_YAW]* DAC_CALIBRATION[ANGLE_YAW]/10000l;
+
+
+	// Saturation de mdpsYaw (-2000<=valMdpsYaw<=2000)
+	if (valMdpsYaw<-2000)
+		valMdpsYaw=-2000;
+	else if (valMdpsYaw>2000)
+		valMdpsYaw=2000;
+
+	// ramener la sortie dans l'intervalle [0,10V] pour la plage d'angle [-20000 mdps,20000 mdps]
+	OutputValues[MDPS_YAW] = ((valMdpsYaw+2000)*10000l/4000l);
+
+	// Utiliser la calibration du DAC pour rester dans l'interval [0,10V]
+	OutputValues[MDPS_YAW] = OutputValues[MDPS_YAW]* DAC_CALIBRATION[MDPS_YAW]/10000l;
+}
+
 void ReceptionCallback(char* data, uint16_t size)
 {
-	uint32_t angle_pitch, angle_yaw, mdps_pitch, mdps_yaw=0;
+	char *ptr=NULL;
+	char *dummy=NULL;
 
-	if (data[0]=='<') // frame correctly written
+	if (data[0] == '<')
 	{
-		sscanf (data, "<%lu,%lu,%lu,%lu\n",
-				&angle_pitch,&mdps_pitch,
-				&angle_yaw,&mdps_yaw);
+		ptr = &data[1];
+		char delim[]=",";
+		char *split[4]={NULL};
 
-		// todo: prevoir des convertion d'echelle et de format
-		OutputValues[ANGLE_PITCH]=(uint16_t)angle_pitch;
-		OutputValues[MDPS_PITCH]=(uint16_t)mdps_pitch;
-		OutputValues[ANGLE_YAW]=(uint16_t)angle_yaw;
-		OutputValues[MDPS_YAW]=(uint16_t)mdps_yaw;
+		split[0] = strtok(ptr, delim);
+		split[1] = strtok(NULL, delim);
+		split[2] = strtok(NULL, delim);
+		split[3] = strtok(NULL, delim);
+
+		valAnglePitch=strtol(split[0],&dummy,10); // Convert first part (Pitch angle) from string to long int in base 10
+		valMdpsPitch=strtol(split[1],&dummy,10); // Convert second part (Pitch mdps) from string to long int in base 10
+		valAngleYaw=strtol(split[2],&dummy,10); // Convert third part (Yaw angle) from string to long int in base 10
+		valMdpsYaw=strtol(split[3],&dummy,10); // Convert fourth part (yaw mdps) from string to long int in base 10
+
+		ConvertOutputValues (valAnglePitch,valAngleYaw,valMdpsPitch,valMdpsYaw);
+
+		messageCounter=0;
+
+		if (messageReceived==0)
+		{
+			messageReceived=1;
+			LED_SetMode(LED_MODE_RUN);
+		}
+	}
+	else //unknown frame, drop it
+	{
+		// nothing to do
 	}
 }
 /* USER CODE END 4 */

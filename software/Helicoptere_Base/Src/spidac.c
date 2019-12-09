@@ -26,7 +26,8 @@ extern void Error_Handler(void);
 /* USER CODE END 0 */
 
 SPI_HandleTypeDef hspi1;
-//DMA_HandleTypeDef hdma_spi1_tx;
+
+#define SPIDAC_OPTIMIZED_TRANSMIT
 
 /* SPI1 init function */
 void SPIDAC_Init(void)
@@ -84,24 +85,6 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* spiHandle)
 		GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
 		HAL_GPIO_Init(DAC_SYNC_GPIO_Port, &GPIO_InitStruct);
 
-		/* SPI1 DMA Init */
-		/* SPI1_TX Init */
-		//    hdma_spi1_tx.Instance = DMA1_Channel3;
-		//    hdma_spi1_tx.Init.Request = DMA_REQUEST_1;
-		//    hdma_spi1_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-		//    hdma_spi1_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-		//    hdma_spi1_tx.Init.MemInc = DMA_MINC_ENABLE;
-		//    hdma_spi1_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-		//    hdma_spi1_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-		//    hdma_spi1_tx.Init.Mode = DMA_NORMAL;
-		//    hdma_spi1_tx.Init.Priority = DMA_PRIORITY_LOW;
-		//    if (HAL_DMA_Init(&hdma_spi1_tx) != HAL_OK)
-		//    {
-		//      Error_Handler();
-		//    }
-		//
-		//    __HAL_LINKDMA(spiHandle,hdmatx,hdma_spi1_tx);
-
 		/* USER CODE BEGIN SPI1_MspInit 1 */
 
 		/* USER CODE END SPI1_MspInit 1 */
@@ -133,6 +116,7 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
 } 
 
 /* USER CODE BEGIN 1 */
+
 void SPIDAC_SetValue(uint8_t channel, uint16_t val)
 {
 	uint8_t DACSPI_Data[2] __attribute__((aligned (16))) = {0};
@@ -143,9 +127,23 @@ void SPIDAC_SetValue(uint8_t channel, uint16_t val)
 	{
 		DACSPI_Data[1] = (channel<<4) | (val>>8);
 		DACSPI_Data[0] = val & 0xFF;
+
+#if !defined (SPIDAC_OPTIMIZED_TRANSMIT)
 		HAL_GPIO_WritePin(GPIOA, DAC_SYNC_Pin, GPIO_PIN_RESET);
 		HAL_SPI_Transmit(&hspi1, DACSPI_Data, 1, 1000);
 		HAL_GPIO_WritePin(GPIOA, DAC_SYNC_Pin, GPIO_PIN_SET);
+#else
+		GPIOA->BRR = DAC_SYNC_Pin;
+		//HAL_SPI_Transmit(&hspi1, DACSPI_Data, 1, 1000);
+		SPI_1LINE_TX(&hspi1);
+		__HAL_SPI_ENABLE(&hspi1);
+		hspi1.Instance->DR = *((uint16_t *)DACSPI_Data);
+
+		while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY)!= RESET) {}
+
+		__HAL_SPI_CLEAR_OVRFLAG(&hspi1);
+		GPIOA->BSRR = DAC_SYNC_Pin;
+#endif /* SPIDAC_OPTIMIZED_TRANSMIT */
 	}
 }
 
@@ -155,10 +153,23 @@ void SPIDAC_LatchInputs(void)
 	DACSPI_Data[1] = 0xD0; /* update DAC from input register */
 	DACSPI_Data[0] = 0x00;
 
-
+#if !defined (SPIDAC_OPTIMIZED_TRANSMIT)
 	HAL_GPIO_WritePin(GPIOA, DAC_SYNC_Pin, GPIO_PIN_RESET);
 	HAL_SPI_Transmit(&hspi1, DACSPI_Data, 1, 1000);
 	HAL_GPIO_WritePin(GPIOA, DAC_SYNC_Pin, GPIO_PIN_SET);
+#else
+	GPIOA->BRR = DAC_SYNC_Pin;
+	GPIOA->BRR = DAC_SYNC_Pin;
+	//HAL_SPI_Transmit(&hspi1, DACSPI_Data, 1, 1000);
+	SPI_1LINE_TX(&hspi1);
+	__HAL_SPI_ENABLE(&hspi1);
+	hspi1.Instance->DR = *((uint16_t *)DACSPI_Data);
+
+	while (__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY)!= RESET) {}
+
+	__HAL_SPI_CLEAR_OVRFLAG(&hspi1);
+	GPIOA->BSRR = DAC_SYNC_Pin;
+#endif /* SPIDAC_OPTIMIZED_TRANSMIT */
 }
 /* USER CODE END 1 */
 

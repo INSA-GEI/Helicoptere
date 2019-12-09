@@ -29,6 +29,8 @@
 
 #include "stm32l4xx_hal.h"
 
+#define MOTORS_CMD_MAX_RANGE	1000
+
 void MOTORS_Init();
 void MOTORS_MspInit();
 void MOTORS_MspDeInit();

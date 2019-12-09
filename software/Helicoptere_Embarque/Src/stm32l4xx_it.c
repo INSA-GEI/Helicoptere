@@ -60,9 +60,9 @@ extern DMA_HandleTypeDef hdma_usart1_tx;
 extern DMA_HandleTypeDef hdma_usart2_tx;
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
+extern volatile uint8_t SYSTICK_1msEvent;
 
-extern int systickRequestFlag;
-void GetAndUpdateSensors(void);
+void TASK_UpdateSensorPeriodic(void);
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -89,6 +89,8 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
 	/* USER CODE BEGIN HardFault_IRQn 0 */
+	LED_SetMode(LED_MODE_ERROR);
+	__NVIC_SystemReset();
 
 	/* USER CODE END HardFault_IRQn 0 */
 	while (1)
@@ -188,20 +190,13 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
 	/* USER CODE BEGIN SysTick_IRQn 0 */
-	static int counter=0;
+
 	/* USER CODE END SysTick_IRQn 0 */
 	HAL_IncTick();
 	/* USER CODE BEGIN SysTick_IRQn 1 */
 
-	counter++;
+	SYSTICK_1msEvent=1;
 
-	if (counter>=2)
-	{
-		counter=0;
-
-		if (AHRS_Status == AHRS_RUN)
-			GetAndUpdateSensors();
-	}
 	/* USER CODE END SysTick_IRQn 1 */
 }
 
@@ -272,8 +267,6 @@ void DMA1_Channel7_IRQHandler(void)
  */
 void USART1_IRQHandler(void)
 {
-
-
 	/* USER CODE BEGIN USART1_IRQn 0 */
 
 	/* USER CODE END USART1_IRQn 0 */
@@ -291,7 +284,32 @@ void USART2_IRQHandler(void)
 	/* USER CODE BEGIN USART2_IRQn 0 */
 
 	/* USER CODE END USART2_IRQn 0 */
+	__HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_NEF);
+	__HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_OREF);
+	__HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_FEF);
+	__HAL_UART_DISABLE_IT(&huart2, UART_IT_ERR);
+	__HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_IDLEF);
+	__HAL_UART_DISABLE_IT(&huart2, UART_IT_IDLE);
+	__HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_PEF);
+	__HAL_UART_DISABLE_IT(&huart2, UART_IT_PE);
+
 	HAL_UART_IRQHandler(&huart2);
+
+//	if (((huart2.Instance->ISR & USART_ISR_RXNE) != 0U)  && ((huart2.Instance->CR1 & USART_CR1_RXNEIE) != 0U))
+//	{
+//		huart2.RxISR(&huart2);
+//	}
+//	else
+//	{
+//		__HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_NEF);
+//		__HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_OREF);
+//		__HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_FEF);
+//		__HAL_UART_DISABLE_IT(&huart2, UART_IT_ERR);
+//		__HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_IDLEF);
+//		__HAL_UART_DISABLE_IT(&huart2, UART_IT_IDLE);
+//		__HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_PEF);
+//		__HAL_UART_DISABLE_IT(&huart2, UART_IT_PE);
+//	}
 	/* USER CODE BEGIN USART2_IRQn 1 */
 
 	/* USER CODE END USART2_IRQn 1 */

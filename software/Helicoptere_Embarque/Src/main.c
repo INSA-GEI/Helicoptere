@@ -24,6 +24,7 @@
 
 #include "stdio.h"
 #include "string.h"
+#include "stdlib.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -55,18 +56,18 @@
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 void RxXBEEData(char* data, uint16_t size);
+void RxBASECOMData(char* data, uint16_t size);
 void GetAndUpdateSensors(void);
 void SystickRequestAHRSUpdate(void);
+void CmdProcessor(char org, char * data, uint16_t size);
 
-//const char *testStr1="Ca a l'air de marcher\n";
-char printfBuffer[100];
+void TASK_1msPeriodic(void);
+void TASK_10msPeriodic(void);
+void TASK_100msPeriodic(void);
+void TASK_UpdateSensorPeriodic(void);
 
 acceleration_t acceleration;
 angularRate_t angular_rate;
-
-//int acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, temp=0;
-//float int_gyro_x,  int_gyro_y, int_gyro_z=0.0;
-//int int_gyro_x_int,  int_gyro_y_int, int_gyro_z_int=0;
 
 typedef struct
 {
@@ -79,8 +80,23 @@ eulerAnglesInt_t EulerAnglesInt;
 
 eulerAngles_t EulerAngles;
 eulerAnglesInt_t EulerAnglesIntTmp[5];
-int flagSensors;
-int systickRequestFlag;
+volatile uint8_t SYSTICK_1msEvent;
+
+char SendXBEEBuffer[100]={0};
+char SendBASECOMBuffer[100]={0};
+char RcvXBEEBuffer[100]={0};
+char RcvBASECOMBuffer[100]={0};
+
+#define ORG_XBEE 		0
+#define ORG_BASECOM 	1
+
+volatile char WirelessMode;
+volatile char ResetFlag;
+volatile char usartBasecomFlag;
+volatile char usartXbeeFlag;
+
+volatile int messageCounter=0;
+volatile char messageReceived=0;
 
 /* USER CODE BEGIN PFP */
 
@@ -97,8 +113,10 @@ int systickRequestFlag;
  */
 int main(void)
 {
-	int counter=0;
-	int counter2=0;
+	int counterTask_100ms=0;
+	int counterTask_10ms=0;
+	int counterTask_Sensor=0;
+
 	/* USER CODE BEGIN 1 */
 	HAL_DeInit();
 	/* USER CODE END 1 */
@@ -127,36 +145,45 @@ int main(void)
 	/* USER CODE BEGIN 2 */
 
 	/* Demarre le timer de la led */
+	DEBUG_Init();
 	LED_Init();
+	LED_SetMode(LED_MODE_ON);
 
 	/* Demarre le timer des moteurs */
 	MOTORS_Init();
 	MOTORS_SetHead(0);
 	MOTORS_SetTail(0);
 
+	usartBasecomFlag=0;
+	usartXbeeFlag=0;
 	/* Demarre l'USART1 (XBEE) */
 	XBEE_Init();
 	XBEE_AddReceptionCallback(RxXBEEData);
 	XBEE_StartReception();
 
-	/* Demarre l'USART2 (BASECOM) */
-	BASECOM_Init();
-
 	/* Demarre l'accelerometre et gyroscope */
-	flagSensors=0;
-	systickRequestFlag=0;
-
 	if (ACC_GYRO_Init() != ACC_OK) {
 		LED_SetMode(LED_MODE_ERROR);
-		sprintf (printfBuffer, "Error initializing sensors: Stop\n");
-		XBEE_SendData((char*)printfBuffer, strlen(printfBuffer));
+		sprintf (SendXBEEBuffer, "Error initializing sensors: Stop\n\r");
+		XBEE_SendData((char*)SendXBEEBuffer, strlen(SendXBEEBuffer));
 
 		while (1);
 	}
 
 	AHRS_Init();
-	HAL_GPIO_EXTI_Callback(GPIO_PIN_1);
+	//HAL_GPIO_EXTI_Callback(GPIO_PIN_1);
 
+	/* Demarre l'USART2 (BASECOM) */
+	BASECOM_Init();
+	BASECOM_AddReceptionCallback(RxBASECOMData);
+	BASECOM_StartReception();
+
+	// initialize variables, flags and counters
+	SYSTICK_1msEvent=0;
+	WirelessMode=0;
+	ResetFlag = 0;
+
+	LED_SetMode(LED_MODE_ERROR);
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -166,131 +193,296 @@ int main(void)
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		//HAL_Delay(10);
 
-		//GYRO_ReadValues(&angular_rate);
-
-		if (systickRequestFlag==1)
+		if (ResetFlag==1)
 		{
-			systickRequestFlag=0;
+			MOTORS_SetHead(0);
+			MOTORS_SetTail(0);
+			LED_SetMode(LED_MODE_OFF);
+			__NVIC_SystemReset();
 
-			SystickRequestAHRSUpdate();
+			while(1);
 		}
 
-		if (flagSensors==1)
+		if (usartBasecomFlag==1)
 		{
-			flagSensors=0;
-			AHRS_UpdateQuaternions();
-
-			AHRS_GetEulerAngles(&EulerAngles);
-			EulerAnglesIntTmp[counter].pitch = (int32_t)(EulerAngles.pitch*100.0);
-			EulerAnglesIntTmp[counter].roll = (int32_t)(EulerAngles.roll*100.0);
-			EulerAnglesIntTmp[counter].yaw = (int32_t)(EulerAngles.yaw*100.0);
-
-			counter ++;
-			counter2++;
-
-			if (counter>=5)
-			{
-				int i;
-				counter=0;
-
-				for (i=0; i<5; i++)
-				{
-					EulerAngles.pitch += EulerAnglesIntTmp[i].pitch;
-					EulerAngles.roll += EulerAnglesIntTmp[i].roll;
-					EulerAngles.yaw += EulerAnglesIntTmp[i].yaw;
-				}
-
-				EulerAngles.pitch = EulerAngles.pitch/5;
-				EulerAngles.roll = EulerAngles.roll/5;
-				EulerAngles.yaw = EulerAngles.yaw/5;
-			}
-
-			if (counter2>=100)
-			{
-				counter2 =0;
-
-				sprintf (printfBuffer, "Angles [%d,\t %d,\t %d]\n",
-						(int)(EulerAngles.pitch/100),
-						(int)(EulerAngles.roll/100),
-						(int)(EulerAngles.yaw/100));
-
-				XBEE_SendData((char*)printfBuffer, strlen(printfBuffer));
-			}
+			usartBasecomFlag=0;
+			CmdProcessor(ORG_BASECOM, RcvBASECOMBuffer, strlen(RcvBASECOMBuffer));
 		}
 
-		//		MOTORS_SetTail(250);
-		//		LED_SetMode(LED_MODE_IDLE);
-		//		HAL_Delay(5000);
-		//
-		//		MOTORS_SetTail(500);
-		//		LED_SetMode(LED_MODE_RUN);
-		//		HAL_Delay(5000);
-		//
-		//		MOTORS_SetTail(750);
-		//		LED_SetMode(LED_MODE_ERROR);
-		//		HAL_Delay(5000);
-		//
-		//		MOTORS_SetTail(1000);
-		//		LED_SetMode(LED_MODE_ON);
-		//		HAL_Delay(5000);
-		//__WFI();
+		if (usartXbeeFlag==1)
+		{
+			usartXbeeFlag=0;
+			CmdProcessor(ORG_XBEE, RcvXBEEBuffer, strlen(RcvXBEEBuffer));
+		}
+
+		if (SYSTICK_1msEvent==1)
+		{
+			SYSTICK_1msEvent=0;
+			counterTask_10ms++;
+			counterTask_100ms++;
+			counterTask_Sensor++;
+			if (counterTask_Sensor>=2)
+			{
+				// throw every 2ms periodic task
+				counterTask_Sensor=0;
+
+				TASK_UpdateSensorPeriodic();
+			}
+
+			// Throw 1 ms periodic task
+			TASK_1msPeriodic();
+
+			if (counterTask_10ms>=10)
+			{
+				// throw every 10ms periodic task
+				counterTask_10ms=0;
+				TASK_10msPeriodic();
+			}
+
+			if (counterTask_100ms>=100)
+			{
+				// throw every 100ms periodic task
+				counterTask_100ms=0;
+				TASK_100msPeriodic();
+			}
+
+			messageCounter++;
+
+			if (messageCounter>=1000) // pas de message valable recu depuis 1 seconde
+			{
+				messageCounter=0;
+				messageReceived=0;
+
+				MOTORS_SetHead(0);
+				MOTORS_SetTail(0);
+				LED_SetMode(LED_MODE_ERROR);
+			}
+		}
 	}
 	/* USER CODE END 3 */
 }
 
+void TASK_1msPeriodic(void)
+{
+
+}
+
+void TASK_10msPeriodic(void)
+{
+	int32_t pitch, yaw, mdpsPitch, mdpsYaw;
+
+	pitch = (int32_t)(-EulerAngles.pitch*100); // Convert in 100's of degree, and invert sign
+	yaw = (int32_t)(EulerAngles.yaw*100); // Convert in 100's of degree
+	mdpsYaw= (int32_t)(angular_rate.z/10.0); // angular_rate are in mdps, convert them in 100's of dps
+	mdpsPitch= (int32_t)(angular_rate.x/10.0); // angular_rate are in mdps, convert them in 100's of dps
+
+	// envoyer les angles en centieme de degré et les vitesses en centieme de dps
+	sprintf (SendXBEEBuffer, "<%li,%li,%li,%li\n\r",
+			pitch, mdpsPitch, yaw, mdpsYaw);
+
+	XBEE_SendData((char*)SendXBEEBuffer, strlen(SendXBEEBuffer));
+
+	sprintf (SendBASECOMBuffer, "<%li,%li,%li,%li\n\r",
+			pitch, mdpsPitch, yaw, mdpsYaw);
+
+	BASECOM_SendData((char*)SendBASECOMBuffer, strlen(SendBASECOMBuffer));
+}
+
+void TASK_100msPeriodic(void)
+{
+
+}
+
+void TASK_UpdateSensorPeriodic(void) // every 2 ms
+{
+	acceleration_t acceleration_loc={0.0,0.0,0.0};
+	angularRate_t angular_rate_loc={0.0,0.0,0.0};
+	static int counter =0;
+
+	if (AHRS_Status == AHRS_RUN)
+	{
+
+		if (GYRO_ReadValues(&angular_rate_loc)==ACC_OK)
+		{
+			angular_rate.x = angular_rate_loc.x;
+			angular_rate.y = angular_rate_loc.y;
+			angular_rate.z = angular_rate_loc.z;
+		}
+
+		if (ACC_ReadValues(&acceleration_loc)==ACC_OK)
+		{
+			acceleration.x = acceleration_loc.x;
+			acceleration.y = acceleration_loc.y;
+			acceleration.z = acceleration_loc.z;
+		}
+
+		AHRS_UpdateSensors(&acceleration, &angular_rate);
+
+		AHRS_UpdateQuaternions();
+
+		AHRS_GetEulerAngles(&EulerAngles);
+		EulerAnglesIntTmp[counter].pitch = (int32_t)(EulerAngles.pitch*100.0);
+		EulerAnglesIntTmp[counter].roll = (int32_t)(EulerAngles.roll*100.0);
+		EulerAnglesIntTmp[counter].yaw = (int32_t)(EulerAngles.yaw*100.0);
+		counter++;
+
+		if (counter>=5) //every 10ms
+		{
+			int i;
+			counter=0;
+
+			for (i=0; i<5; i++)
+			{
+				EulerAngles.pitch += EulerAnglesIntTmp[i].pitch;
+				EulerAngles.roll += EulerAnglesIntTmp[i].roll;
+				EulerAngles.yaw += EulerAnglesIntTmp[i].yaw;
+			}
+
+			EulerAngles.pitch = EulerAngles.pitch/5;
+			EulerAngles.roll = EulerAngles.roll/5;
+			EulerAngles.yaw = EulerAngles.yaw/5;
+		}
+	}
+}
+
+int SearchStr(char *str, char *pattern)
+{
+	int length, lengthPattern;
+	int index =0;
+	int status=1;
+
+	length = strlen(str);
+	lengthPattern = strlen(pattern);
+
+	if ((length == 0) || (lengthPattern==0))
+		return 0;
+
+	if (length != lengthPattern)
+		return 0;
+
+	for (index=0; index <length; index ++)
+	{
+		if (str[index] != pattern[index])
+		{
+			status=0;
+			break;
+		}
+	}
+
+	return status;
+}
+
+void CmdProcessor(char org, char *data, uint16_t size)
+{
+	char *ptr=NULL;
+	char *dummy=NULL;
+	uint32_t valHead,valTail=0;
+
+	DEBUG_ENTERSECTION(DEBUG_SECTION_1);
+	if (data[0]=='A')
+	{
+		if (SearchStr(data, "ATRS")!=0)
+		{
+			ResetFlag=1;
+		}
+		else if (SearchStr(data, "ATWL=1")!=0)
+		{
+			WirelessMode=1;
+			MOTORS_SetHead(0);
+			MOTORS_SetTail(0);
+		}
+		else if (SearchStr(data, "ATWL=0")!=0)
+		{
+			WirelessMode=0;
+			MOTORS_SetHead(0);
+			MOTORS_SetTail(0);
+		}
+		else if (SearchStr(data, "ATWL?")!=0)
+		{
+			if (WirelessMode==0)
+				sprintf(SendXBEEBuffer, "0\n\r");
+			else
+				sprintf(SendXBEEBuffer, "1\n\r");
+			XBEE_SendData(SendXBEEBuffer, strlen(SendXBEEBuffer));
+		}
+		else if (SearchStr(data, "AT")!=0)
+		{
+			sprintf(SendXBEEBuffer, "OK\n\r");
+			XBEE_SendData(SendXBEEBuffer, strlen(SendXBEEBuffer));
+		}
+
+		messageCounter=0;
+
+		if (messageReceived==0)
+		{
+			messageReceived=1;
+			LED_SetMode(LED_MODE_RUN);
+		}
+	}
+	else if (data[0] == '>')
+	{
+		if (((WirelessMode==0)&&(org==ORG_BASECOM)) || ((WirelessMode==1)&&(org==ORG_XBEE)))
+		{
+			ptr = &data[1];
+			char delim[]=",";
+			char *split[2]={NULL};
+
+			split[0] = strtok(ptr, delim);
+			split[1] = strtok(NULL, delim);
+
+			valHead=strtol(split[0],&dummy,10); // Convert first part (head) from string to long int in base 10
+			valTail=strtol(split[1],&dummy,10); // Convert first part (head) from string to long int in base 10
+
+			// update motors
+			// Maximum string values are 10000 (10000 millivolts), maximum motor command is 1000: factor 10
+			// Under 1v, motor is off
+
+			if (valHead>=1000)
+				MOTORS_SetHead(valHead/10);
+			else
+				MOTORS_SetHead(0);
+
+			if (valTail>=1000)
+				MOTORS_SetTail(valTail/10);
+			else
+				MOTORS_SetTail(0);
+
+			messageCounter=0;
+
+			if (messageReceived==0)
+			{
+				messageReceived=1;
+				LED_SetMode(LED_MODE_RUN);
+			}
+		}
+	}
+	else //unknown frame, drop it
+	{
+		// nothing to do
+	}
+	DEBUG_LEAVESECTION(DEBUG_SECTION_1);
+}
 /**
  * @brief Xbee RX Callback
  * @retval None
  */
 void RxXBEEData(char* data, uint16_t size)
 {
-	static uint32_t cnt=0;
-	volatile char c;
+	usartXbeeFlag=1;
 
-	c= data[0];
-
-	cnt++;
-	if (cnt==2) XBEE_StopReception();
+	strcpy(RcvXBEEBuffer,data);
 }
 
-void SystickRequestAHRSUpdate(void)
+/**
+ * @brief BASECOM RX Callback
+ * @retval None
+ */
+void RxBASECOMData(char* data, uint16_t size)
 {
-	static int counter=0;
-	counter++;
+	usartBasecomFlag=1;
 
-	if (counter>=2)
-	{
-		counter=0;
-
-		if (AHRS_Status == AHRS_RUN)
-			GetAndUpdateSensors();
-	}
-}
-
-void GetAndUpdateSensors(void)
-{
-	//	static uint8_t counter=0;
-	acceleration_t acceleration_loc;
-	angularRate_t angular_rate_loc;
-
-	if (GYRO_ReadValues(&angular_rate_loc)==ACC_OK)
-	{
-		angular_rate.x = angular_rate_loc.x;
-		angular_rate.y = angular_rate_loc.y;
-		angular_rate.z = angular_rate_loc.z;
-	}
-
-	if (ACC_ReadValues(&acceleration_loc)==ACC_OK)
-	{
-		acceleration.x = acceleration_loc.x;
-		acceleration.y = acceleration_loc.y;
-		acceleration.z = acceleration_loc.z;
-	}
-
-	AHRS_UpdateSensors(&acceleration, &angular_rate);
-	flagSensors=1;
+	strcpy(RcvBASECOMBuffer,data);
 }
 
 /**
@@ -318,15 +510,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	}
 
 	AHRS_UpdateSensors(&acceleration, &angular_rate);
-	flagSensors=1;
 
-	//	counter++;
-	//
-	//	if(counter>=4)
-	//	{
-	//		counter =0;
-	//		flagSensors=1;
-	//	}
 }
 
 /**

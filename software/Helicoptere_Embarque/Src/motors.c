@@ -24,14 +24,13 @@
  ******************************************************************************
  */
 
-#include "led.h"
+#include "motors.h"
 
 TIM_HandleTypeDef htim1;
 extern void Error_Handler(void);
 static void MOTORS_MspPostInit();
 
-#define MOTORS_PWM_PERIOD 800
-#define MOTORS_CMD_MAX_RANGE	1000
+#define MOTORS_PWM_PERIOD 		800
 
 /* HAL_TIM_Base_MspInit and HAL_TIM_Base_MspDeInit are defined in stm32l4xx_hal_msp.c and used by HAL_TIM_Base_Init
  * Both call LED_MspInit (or LED_MspDeInit) if timer is tim2
@@ -80,7 +79,7 @@ void MOTORS_Init()
 	htim1.Init.Period = 800;
 	htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim1.Init.RepetitionCounter = 0;
-	htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+	htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
 	if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
 	{
 		Error_Handler();

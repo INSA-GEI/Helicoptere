@@ -151,8 +151,9 @@ uint8_t ACC_GYRO_Init(void)
 		return ACC_ERROR;
 	}
 
-	hi2c1.Init.Timing = 0x10909CEC;
-	//hi2c1.Init.Timing = 0x40912732;
+	//hi2c1.Init.Timing = 0x10909CEC;
+	//hi2c1.Init.Timing = 0x00702991;
+	hi2c1.Init.Timing = 0x00300F33;
 	hi2c1.Init.OwnAddress1 = 0;
 	hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
 	hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -310,8 +311,6 @@ uint8_t ACC_ReadRawValues(axis3bit16_t *data_raw_acceleration)
 
 	if (accSensorEnabled)
 	{
-		/* TODO: Supprimer apres test */
-		__disable_irq(); // Set PRIMASK
 
 		/*
 		 * Read status register
@@ -328,8 +327,6 @@ uint8_t ACC_ReadRawValues(axis3bit16_t *data_raw_acceleration)
 		}
 		else status = ACC_BUSY;
 
-		/* TODO: Supprimer apres test */
-		__enable_irq(); // Clear PRIMASK
 	} else status = ACC_ERROR;
 
 	return status;
@@ -346,9 +343,6 @@ uint8_t GYRO_ReadRawValues(axis3bit16_t *data_raw_angular_rate)
 
 	if (accSensorEnabled)
 	{
-		/* TODO: Supprimer apres test */
-		__disable_irq(); // Set PRIMASK
-
 		lsm6ds3_gy_flag_data_ready_get(&sensorCtx, &reg);
 
 		if (reg)
@@ -361,8 +355,6 @@ uint8_t GYRO_ReadRawValues(axis3bit16_t *data_raw_angular_rate)
 		}
 		else status = ACC_BUSY;
 
-		/* TODO: Supprimer apres test */
-		__enable_irq(); // Clear PRIMASK
 	} else status = ACC_ERROR;
 
 	return status;
@@ -379,9 +371,6 @@ uint8_t ACC_ReadValues(acceleration_t *acceleration)
 
 	if (accSensorEnabled)
 	{
-		/* TODO: Supprimer apres test */
-		__disable_irq(); // Set PRIMASK
-
 		status = ACC_ReadRawValues(&data_raw_acceleration);
 
 		if (status == ACC_OK)
@@ -424,8 +413,6 @@ uint8_t ACC_ReadValues(acceleration_t *acceleration)
 			}
 		}
 
-		/* TODO: Supprimer apres test */
-		__enable_irq(); // Clear PRIMASK
 	} else status = ACC_ERROR;
 
 	return status;
@@ -442,9 +429,6 @@ uint8_t GYRO_ReadValues(angularRate_t *angular_rate)
 
 	if (accSensorEnabled)
 	{
-		/* TODO: Supprimer apres test */
-		__disable_irq(); // Set PRIMASK
-
 		status = GYRO_ReadRawValues(&data_raw_angular_rate);
 
 		if (status == ACC_OK)
@@ -499,8 +483,6 @@ uint8_t GYRO_ReadValues(angularRate_t *angular_rate)
 			}
 		}
 
-		/* TODO: Supprimer apres test */
-		__enable_irq(); // Clear PRIMASK
 	} else status = ACC_ERROR;
 
 	return status;
@@ -551,8 +533,6 @@ uint8_t ACC_ReadTemperature(float *temperature_degC)
 
 	if (accSensorEnabled)
 	{
-		/* TODO: Supprimer apres test */
-		__disable_irq(); // Set PRIMASK
 
 		/*
 		 * Read output only if new value is available
@@ -574,8 +554,6 @@ uint8_t ACC_ReadTemperature(float *temperature_degC)
 			status =  ACC_NO_DATA;
 		}
 
-		/* TODO: Supprimer apres test */
-		__enable_irq(); // Clear PRIMASK
 	} else status = ACC_ERROR;
 
 	return status;

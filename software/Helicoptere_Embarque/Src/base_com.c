@@ -41,7 +41,7 @@ static uint32_t BASECOM_RawBufferIndex;
 void BASECOM_Init(void)
 {
 	huart2.Instance = USART2;
-	huart2.Init.BaudRate = 250000;
+	huart2.Init.BaudRate = 115200;
 	huart2.Init.WordLength = UART_WORDLENGTH_8B;
 	huart2.Init.StopBits = UART_STOPBITS_1;
 	huart2.Init.Parity = UART_PARITY_NONE;
@@ -92,11 +92,11 @@ void BASECOM_MspInit(void)
 	__HAL_LINKDMA(&huart2,hdmatx,hdma_usart2_tx);
 
 	/* USART2 interrupt Init */
-	HAL_NVIC_SetPriority(USART2_IRQn, 0x04, 0);
+	HAL_NVIC_SetPriority(USART2_IRQn, 0x0A, 0);
 	HAL_NVIC_EnableIRQ(USART2_IRQn);
 
 	/* DMA1_Channel7 interrupt init */
-	HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0x05, 0);
+	HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0x0F, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
 }
 
@@ -155,7 +155,6 @@ void BASECOM_SendData (char* data, uint16_t size)
 	}
 }
 
-
 void BASECOM_StartReception(void)
 {
 	if (BASECOM_ReceptionCallback==0)
@@ -192,12 +191,12 @@ static void BASECOM_RxISR(UART_HandleTypeDef *huart)
 	__HAL_UART_SEND_REQ(huart, UART_RXDATA_FLUSH_REQUEST);
 	uhdata = (uint8_t)uhdata;
 
-	if (uhdata!=0x0D)
+	if ((uhdata!='\r')&&(uhdata!='\n'))
 	{
 		BASECOM_RawBuffer[BASECOM_RawBufferIndex]=(char)uhdata;
 		BASECOM_RawBufferIndex++;
 	}
-	else
+	else if (uhdata!='\n')
 	{
 		BASECOM_RawBuffer[BASECOM_RawBufferIndex]=0;
 		BASECOM_RawBufferIndex++;
