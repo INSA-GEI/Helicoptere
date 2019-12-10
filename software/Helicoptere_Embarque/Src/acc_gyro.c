@@ -140,7 +140,7 @@ uint8_t ACC_GYRO_Init(void)
 { 
 	uint8_t whoamI,rst;
 //	lsm6ds3_int1_route_t int_1_reg;
-//	axis3bit16_t data;
+	axis3bit16_t data;
 
 	hi2c1.Instance = I2C1;
 //	GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -249,8 +249,8 @@ uint8_t ACC_GYRO_Init(void)
 //	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
 	/* Do some dummy reads to flush It */
-//	lsm6ds3_acceleration_raw_get(&sensorCtx, data.u8bit);
-//	lsm6ds3_angular_rate_raw_get(&sensorCtx, data.u8bit);
+	lsm6ds3_acceleration_raw_get(&sensorCtx, data.u8bit);
+	lsm6ds3_angular_rate_raw_get(&sensorCtx, data.u8bit);
 
 	return ACC_OK;
 }

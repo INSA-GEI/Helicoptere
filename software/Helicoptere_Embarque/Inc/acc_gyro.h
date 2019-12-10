@@ -106,7 +106,7 @@ extern "C" {
 // * LSM6DS3_1000dps
 // * LSM6DS3_2000dps
 
-#define LSM6DS3_GYRO_FULL_SCALE LSM6DS3_2000dps
+#define LSM6DS3_GYRO_FULL_SCALE LSM6DS3_1000dps
 
 // Gyroscope Output Data Rate (update frequency)
 // LSM6DS3_GYRO_ODR can take values off:

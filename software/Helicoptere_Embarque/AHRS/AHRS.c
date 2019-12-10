@@ -67,20 +67,20 @@ void AHRS_DeInit(void)
 	AHRS_Status=AHRS_STOP;
 }
 
-void AHRS_MyFusion(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz) {
-	float recipNorm;
-	q0 = 0;
-	q1 = gx;
-	q2 = gy;
-	q3 = gz;
-
-	// Normalise quaternion
-	recipNorm = 1/sqrt((q0 * q0) + (q1 * q1) + (q2 * q2) + (q3 * q3));
-	q0 *= recipNorm;
-	q1 *= recipNorm;
-	q2 *= recipNorm;
-	q3 *= recipNorm;
-}
+//void AHRS_MyFusion(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz) {
+//	float recipNorm;
+//	q0 = 0;
+//	q1 = gx;
+//	q2 = gy;
+//	q3 = gz;
+//
+//	// Normalise quaternion
+//	recipNorm = 1/sqrt((q0 * q0) + (q1 * q1) + (q2 * q2) + (q3 * q3));
+//	q0 *= recipNorm;
+//	q1 *= recipNorm;
+//	q2 *= recipNorm;
+//	q3 *= recipNorm;
+//}
 
 void AHRS_UpdateQuaternions(void) {
 	float val[9] = {0.0f};
@@ -182,25 +182,25 @@ void AHRS_GetEulerAngles(eulerAngles_t* angles) {
 	float *q = QuaternionsBuffer;
 	float euler[3] = {0.0f};
 
-//	  euler[0] = atan2(2*q[1]*q[2]-2*q[0]*q[3], 2*q[0]*q[0]+2*q[1]*q[1]-1)*180/PI; // heading, yaw, phi
-//    euler[1] = -asin(2*q[1]*q[3]+2*q[0]*q[2])*180/PI; // attitude, elevation, pitch, theta
-//    euler[2] = atan2(2*q[2]*q[3]-2*q[0]*q[1], 2*q[0]*q[0]+2*q[3]*q[3]-1)*180/PI; // bank, roll, psi
+//	euler[0] = atan2(2*q[1]*q[2]-2*q[0]*q[3], 2*q[0]*q[0]+2*q[1]*q[1]-1)*180/PI; // heading, yaw, phi
+//	euler[1] = -asin(2*q[1]*q[3]+2*q[0]*q[2])*180/PI; // attitude, elevation, pitch, theta
+//	euler[2] = atan2(2*q[2]*q[3]-2*q[0]*q[1], 2*q[0]*q[0]+2*q[3]*q[3]-1)*180/PI; // bank, roll, psi
 
 	float test = QX*QY+QZ*QW;
 
-	if (test > 0.499) {
-		euler[0] = 2*atan2(QX, QW)*180/PI;
-		euler[1] = PI*180/(2*PI);
-		euler[2] = 0;
-	} else if (test< -0.499) {
-		euler[0] = -2*atan2(QX, QW)*180/PI;
-		euler[1] = -PI*180/(2*PI);
-		euler[2] = 0;
-	} else {
+//	if (test > 0.499) {
+//		euler[0] = 2*atan2(QX, QW)*180/PI;
+//		euler[1] = PI*180/(2*PI);
+//		euler[2] = 0;
+//	} else if (test< -0.499) {
+//		euler[0] = -2*atan2(QX, QW)*180/PI;
+//		euler[1] = -PI*180/(2*PI);
+//		euler[2] = 0;
+//	} else {
 		euler[0] = atan2(2*QY*QW - 2*QX*QZ, 1 - 2*QY*QY - 2*QZ*QZ)*180/PI;
 		euler[1] = asin(2*QX*QY + 2*QZ*QW)*180/PI;
 		euler[2] = atan2(2*QX*QW - 2*QY*QZ, 1 - 2*QX*QX - 2*QZ*QZ)*180/PI;
-	}
+//	}
 
 	angles->yaw = euler[1]*2.0;
 	angles->roll = euler[0]*2.0;

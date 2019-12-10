@@ -76,6 +76,13 @@ typedef struct
 	int32_t yaw;
 } eulerAnglesInt_t;
 
+typedef struct
+{
+	float pitch;
+	float roll;
+	float yaw;
+} eulerAngles_t;
+
 eulerAnglesInt_t EulerAnglesInt;
 
 eulerAngles_t EulerAngles;
@@ -125,6 +132,7 @@ int main(void)
 	/* MCU Configuration--------------------------------------------------------*/
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_DeInit();
 	HAL_Init();
 
 	/* USER CODE BEGIN Init */
@@ -161,7 +169,19 @@ int main(void)
 	XBEE_AddReceptionCallback(RxXBEEData);
 	XBEE_StartReception();
 
-	/* Demarre l'accelerometre et gyroscope */
+	/* Demarre l'USART2 (BASECOM) */
+	BASECOM_Init();
+	BASECOM_AddReceptionCallback(RxBASECOMData);
+	BASECOM_StartReception();
+
+	/* attente de 5s, que l'helicopetere se stabilise */
+	sprintf (SendXBEEBuffer, "Stabilizing system: Do not touch\n\rPlease wait 3s ...\n\r");
+	XBEE_SendData((char*)SendXBEEBuffer, strlen(SendXBEEBuffer));
+	HAL_Delay(3000);
+
+	sprintf (SendXBEEBuffer, "Calibrating sensors\n\rDo not touch and wait 2s ...\n\r");
+	XBEE_SendData((char*)SendXBEEBuffer, strlen(SendXBEEBuffer));
+	/* Demarre l'accelerometre et gyroscope et calibre le gyroscope (le systeme ne doit plus bouger) */
 	if (ACC_GYRO_Init() != ACC_OK) {
 		LED_SetMode(LED_MODE_ERROR);
 		sprintf (SendXBEEBuffer, "Error initializing sensors: Stop\n\r");
@@ -170,13 +190,12 @@ int main(void)
 		while (1);
 	}
 
-	AHRS_Init();
+	//AHRS_Init();
+	MAHONY_Init(500);
 	//HAL_GPIO_EXTI_Callback(GPIO_PIN_1);
 
-	/* Demarre l'USART2 (BASECOM) */
-	BASECOM_Init();
-	BASECOM_AddReceptionCallback(RxBASECOMData);
-	BASECOM_StartReception();
+	sprintf (SendXBEEBuffer, "System ready ...\n\r");
+	XBEE_SendData((char*)SendXBEEBuffer, strlen(SendXBEEBuffer));
 
 	// initialize variables, flags and counters
 	SYSTICK_1msEvent=0;
@@ -263,23 +282,21 @@ int main(void)
 	/* USER CODE END 3 */
 }
 
-void TASK_1msPeriodic(void)
-{
-
-}
-
 void TASK_10msPeriodic(void)
 {
 	int32_t pitch, yaw, mdpsPitch, mdpsYaw;
 
-	pitch = (int32_t)(-EulerAngles.pitch*100); // Convert in 100's of degree, and invert sign
-	yaw = (int32_t)(EulerAngles.yaw*100); // Convert in 100's of degree
+	pitch = (int32_t)(-EulerAngles.pitch); // Already in 100's of degree, and invert sign
+	yaw = (int32_t)(EulerAngles.yaw); // Already in 100's of degree
 	mdpsYaw= (int32_t)(angular_rate.z/10.0); // angular_rate are in mdps, convert them in 100's of dps
 	mdpsPitch= (int32_t)(angular_rate.x/10.0); // angular_rate are in mdps, convert them in 100's of dps
 
 	// envoyer les angles en centieme de degré et les vitesses en centieme de dps
 	sprintf (SendXBEEBuffer, "<%li,%li,%li,%li\n\r",
 			pitch, mdpsPitch, yaw, mdpsYaw);
+
+	//	sprintf (SendXBEEBuffer, "<%li,%li\n\r",
+	//			pitch/100, yaw/100 );
 
 	XBEE_SendData((char*)SendXBEEBuffer, strlen(SendXBEEBuffer));
 
@@ -290,6 +307,11 @@ void TASK_10msPeriodic(void)
 }
 
 void TASK_100msPeriodic(void)
+{
+
+}
+
+void TASK_1msPeriodic(void)
 {
 
 }
@@ -305,6 +327,10 @@ void TASK_UpdateSensorPeriodic(void) // every 2 ms
 
 		if (GYRO_ReadValues(&angular_rate_loc)==ACC_OK)
 		{
+			//			angular_rate.x = angular_rate_loc.x/1.63;
+			//			angular_rate.y = angular_rate_loc.y/1.63;
+			//			angular_rate.z = angular_rate_loc.z/1.63;
+
 			angular_rate.x = angular_rate_loc.x;
 			angular_rate.y = angular_rate_loc.y;
 			angular_rate.z = angular_rate_loc.z;
@@ -317,14 +343,23 @@ void TASK_UpdateSensorPeriodic(void) // every 2 ms
 			acceleration.z = acceleration_loc.z;
 		}
 
-		AHRS_UpdateSensors(&acceleration, &angular_rate);
+		//		AHRS_UpdateSensors(&acceleration, &angular_rate);
+		//
+		//		AHRS_UpdateQuaternions();
+		//
+		//		AHRS_GetEulerAngles(&EulerAngles);
+		//		EulerAnglesIntTmp[counter].pitch = (int32_t)(EulerAngles.pitch*100.0);
+		//		EulerAnglesIntTmp[counter].roll = (int32_t)(EulerAngles.roll*100.0);
+		//		EulerAnglesIntTmp[counter].yaw = (int32_t)(EulerAngles.yaw*100.0);
 
-		AHRS_UpdateQuaternions();
+		// Gyro is given in mdps, MAHONY requires it in dps
+		// Accelero is given in mg, MAHONY requires it in g
+		MAHONY_UpdateWithoutMag(angular_rate.x/1000.0, angular_rate.y/1000.0, angular_rate.z/1000.0,
+				acceleration.x/1000.0, acceleration.y/1000.0, acceleration.z/1000.0);
 
-		AHRS_GetEulerAngles(&EulerAngles);
-		EulerAnglesIntTmp[counter].pitch = (int32_t)(EulerAngles.pitch*100.0);
-		EulerAnglesIntTmp[counter].roll = (int32_t)(EulerAngles.roll*100.0);
-		EulerAnglesIntTmp[counter].yaw = (int32_t)(EulerAngles.yaw*100.0);
+		EulerAnglesIntTmp[counter].roll = (int32_t)(MAHONY_GetPitch()*100.0);
+		EulerAnglesIntTmp[counter].pitch = (int32_t)(MAHONY_GetRoll()*100.0);
+		EulerAnglesIntTmp[counter].yaw = (int32_t)(MAHONY_GetYaw()*100.0);
 		counter++;
 
 		if (counter>=5) //every 10ms
@@ -379,7 +414,6 @@ void CmdProcessor(char org, char *data, uint16_t size)
 	char *dummy=NULL;
 	uint32_t valHead,valTail=0;
 
-	DEBUG_ENTERSECTION(DEBUG_SECTION_1);
 	if (data[0]=='A')
 	{
 		if (SearchStr(data, "ATRS")!=0)
@@ -461,7 +495,6 @@ void CmdProcessor(char org, char *data, uint16_t size)
 	{
 		// nothing to do
 	}
-	DEBUG_LEAVESECTION(DEBUG_SECTION_1);
 }
 /**
  * @brief Xbee RX Callback
@@ -492,24 +525,24 @@ void RxBASECOMData(char* data, uint16_t size)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	//	static uint8_t counter=0;
-	acceleration_t acceleration_loc;
-	angularRate_t angular_rate_loc;
-
-	if (GYRO_ReadValues(&angular_rate_loc)==ACC_OK)
-	{
-		angular_rate.x = angular_rate_loc.x;
-		angular_rate.y = angular_rate_loc.y;
-		angular_rate.z = angular_rate_loc.z;
-	}
-
-	if (ACC_ReadValues(&acceleration_loc)==ACC_OK)
-	{
-		acceleration.x = acceleration_loc.x;
-		acceleration.y = acceleration_loc.y;
-		acceleration.z = acceleration_loc.z;
-	}
-
-	AHRS_UpdateSensors(&acceleration, &angular_rate);
+	//	acceleration_t acceleration_loc;
+	//	angularRate_t angular_rate_loc;
+	//
+	//	if (GYRO_ReadValues(&angular_rate_loc)==ACC_OK)
+	//	{
+	//		angular_rate.x = angular_rate_loc.x;
+	//		angular_rate.y = angular_rate_loc.y;
+	//		angular_rate.z = angular_rate_loc.z;
+	//	}
+	//
+	//	if (ACC_ReadValues(&acceleration_loc)==ACC_OK)
+	//	{
+	//		acceleration.x = acceleration_loc.x;
+	//		acceleration.y = acceleration_loc.y;
+	//		acceleration.z = acceleration_loc.z;
+	//	}
+	//
+	//	AHRS_UpdateSensors(&acceleration, &angular_rate);
 
 }
 

@@ -10,9 +10,9 @@ RM := rm -rf
 -include sources.mk
 -include Startup/subdir.mk
 -include Src/subdir.mk
+-include Mahony/subdir.mk
 -include Drivers/lsm6ds3/subdir.mk
 -include Drivers/STM32L4xx_HAL_Driver/Src/subdir.mk
--include AHRS/subdir.mk
 -include subdir.mk
 -include objects.mk
 

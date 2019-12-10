@@ -27,7 +27,7 @@ extern void Error_Handler(void);
 
 SPI_HandleTypeDef hspi1;
 
-#define SPIDAC_OPTIMIZED_TRANSMIT
+//#define SPIDAC_OPTIMIZED_TRANSMIT
 
 /* SPI1 init function */
 void SPIDAC_Init(void)

@@ -29,6 +29,7 @@ extern "C" {
 typedef void (*UART_ReceptionCallbackTypeDef)(char* data, uint16_t size);
 
 void UART_Init(void);
+void UART_DeInit(void);
 void UART_MspInit(void);
 void UART_MspDeInit(void);
 

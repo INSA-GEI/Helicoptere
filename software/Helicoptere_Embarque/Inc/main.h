@@ -38,7 +38,8 @@ extern "C" {
 #include "base_com.h"
 #include "acc_gyro.h"
 
-#include "AHRS.h"
+//#include "AHRS.h"
+#include "mahony.h"
 #include "debug.h"
 
 /* USER CODE END Includes */

@@ -19,6 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usart.h"
+#include "string.h"
 
 /* USER CODE BEGIN 0 */
 
@@ -38,6 +39,8 @@ static uint32_t UART_RawBufferIndex;
 
 void UART_Init(void)
 {
+	memset (&huart2,0, sizeof(UART_HandleTypeDef));
+
 	huart2.Instance = USART2;
 	huart2.Init.BaudRate = 115200;
 	huart2.Init.WordLength = UART_WORDLENGTH_8B;
@@ -49,10 +52,23 @@ void UART_Init(void)
 	huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
 	huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
 
+	UART_RawBufferIndex=0;
+	memset(UART_RawBuffer,0,100);
+	memset(UART_FilteredBuffer,0,100);
+	UART_ReceptionCallback=0;
+
 	if (HAL_UART_Init(&huart2) != HAL_OK)
 	{
 		Error_Handler();
 	}
+}
+
+void UART_DeInit(void)
+{
+	__HAL_RCC_USART2_FORCE_RESET();
+	__HAL_RCC_USART2_RELEASE_RESET();
+
+	HAL_UART_MspDeInit(&huart2);
 }
 
 void HAL_UART_MspInit(UART_HandleTypeDef *huart)
@@ -79,6 +95,8 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 
 	/* USART2 DMA Init */
 	/* USART2_TX Init */
+	memset (&hdma_usart2_tx,0, sizeof(DMA_HandleTypeDef));
+
 	hdma_usart2_tx.Instance = DMA1_Channel4;
 	hdma_usart2_tx.Init.Request = DMA_REQUEST_4;
 	hdma_usart2_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
